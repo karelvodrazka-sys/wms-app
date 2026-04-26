@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zaskladnění</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="topbar">
+        <h1>WMS Vulkán</h1>
+        <nav>
+            <a href="/">Přehled beden</a>
+            <a href="/receipt.html">Příjem</a>
+            <a href="/putaway.html">Zaskladnění</a>
+            <a href="/transfer.html">Přeskladnění</a>
+            <a href="/history.html">Historie</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="card">
+            <div class="card-header">
+                <h2>Potvrzení zaskladnění</h2>
+            </div>
+
+            <div class="form">
+                <input id="boxId" placeholder="Číslo bedny (např. 00004)" />
+                <button onclick="loadBox()">Načíst bednu</button>
+
+                <div id="boxInfo" style="display:none;">
+                    <p><strong>Číslo bedny:</strong> <span id="boxNumber"></span></p>
+                    <p><strong>PN:</strong> <span id="partNumber"></span></p>
+                    <p><strong>Šarže:</strong> <span id="batch"></span></p>
+                    <p><strong>Cavity:</strong> <span id="cavity"></span></p>
+                    <p><strong>Rezervovaná lokace:</strong> <span id="reservedLocation"></span></p>
+                    <button onclick="confirmPutaway()">Potvrdit zaskladnění</button>
+                </div>
+
+                <p id="result"></p>
+            </div>
+        </section>
+
+        <section class="toolbar" style="margin-top: 20px;">
+            <button onclick="loadPendingBoxes()">Obnovit čekající bedny</button>
+            <button onclick="confirmSelectedPutaway()">Potvrdit vybrané zaskladnění</button>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Bedny čekající na zaskladnění</h2>
+                <span id="pendingCount">Načítám...</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" onclick="toggleAllPending(this)" /></th>
+                            <th>Bedna</th>
+                            <th>PN</th>
+                            <th>Šarže</th>
+                            <th>Cavity</th>
+                            <th>Ks</th>
+                            <th>Rezervovaná lokace</th>
+                            <th>Změnit lokaci</th>
+                            <th>Zrušit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingTableBody">
+                        <tr>
+                            <td colspan="9">Načítám data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="putaway.js"></script>
+</body>
+</html>

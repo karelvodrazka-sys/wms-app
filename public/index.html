@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WMS Vulkán</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="topbar">
+        <h1>WMS Vulkán</h1>
+        <nav>
+            <a href="/">Přehled beden</a>
+            <a href="/receipt.html">Příjem</a>
+            <a href="/putaway.html">Zaskladnění</a>
+            <a href="/transfer.html">Přeskladnění</a>
+            <a href="/history.html">Historie</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="panel">
+            <div class="toolbar-row">
+                <input type="text" id="searchInput" placeholder="Hledat podle čísla bedny, PN, šarže..." />
+                <button id="reloadBtn" class="btn btn-primary">Obnovit</button>
+            </div>
+
+            <div class="filter-row">
+                <button class="filter-chip active" onclick="setFilter('ALL', this)">Vše</button>
+                <button class="filter-chip" onclick="setFilter('WAITING', this)">Čeká na zaskladnění</button>
+                <button class="filter-chip" onclick="setFilter('STOCK', this)">Zásoba</button>
+                <button class="filter-chip" onclick="setFilter('TRANSFER', this)">Přesunuto</button>
+                <button class="filter-chip" onclick="setFilter('CK', this)">ČK</button>
+            </div>
+
+            <div class="action-row">
+                <select id="destination" class="select-modern">
+                    <option value="">Vyber destinaci</option>
+                    <option value="1">Do výroby</option>
+                    <option value="2">Do impregnace</option>
+                    <option value="3">Do skladu</option>
+                </select>
+
+                <button onclick="issueSelected()" class="btn btn-primary">
+                    Vydat vybrané bedny
+                </button>
+
+                <button onclick="transferSelected()" class="btn btn-primary">
+                    Přeskladnit vybrané
+                </button>
+
+                <select id="qualityStatusBulk" class="select-modern">
+                    <option value="">Vyber kvalitativní stav</option>
+                    <option value="1">Volná</option>
+                    <option value="2">Červená karta</option>
+                    <option value="3">3D kontrola</option>
+                    <option value="4">Před impregnací</option>
+                    <option value="5">Po impregnaci</option>
+                </select>
+
+                <input id="redCardNumberBulk" class="select-modern" placeholder="Číslo ČK (volitelné)" />
+
+                <button onclick="changeSelectedQualityStatus()" class="btn btn-primary">
+                    Změnit kvalitativní stav
+                </button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Seznam beden</h2>
+                <span id="boxCount">Načítám...</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="boxesTable">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" onclick="toggleAll(this)" />
+                            </th>
+                            <th>Bedna</th>
+                            <th>PN</th>
+                            <th>Šarže</th>
+                            <th>Otisk</th>
+                            <th>Zakázka</th>
+                            <th>Ks</th>
+                            <th>Obsahový stav</th>
+                            <th>Logistický stav</th>
+                            <th>Kvalitativní stav</th>
+                            <th>Číslo ČK</th>
+                            <th>Sklad</th>
+                            <th>Lokace</th>
+                            <th>Sloupec</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boxesTableBody">
+                        <tr>
+                            <td colspan="14">Načítám data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

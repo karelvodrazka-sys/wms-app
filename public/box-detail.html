@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Detail bedny</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <h1>WMS Vulkán</h1>
+    <nav>
+        <a href="/">Přehled beden</a>
+        <a href="/receipt.html">Příjem</a>
+        <a href="/putaway.html">Zaskladnění</a>
+        <a href="/transfer.html">Přeskladnění</a>
+        <a href="/history.html">Historie</a>
+    </nav>
+</header>
+
+<main class="container">
+    <section class="card">
+        <div class="card-header">
+            <h2 id="boxTitle">Detail bedny</h2>
+            <a id="backBtn" class="btn btn-primary">Zpět</a>
+        </div>
+
+        <div class="detail-grid" id="boxDetail">
+            Načítám...
+        </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+        <div class="card-header">
+            <h2>Historie bedny</h2>
+            <span id="historyCount">Načítám...</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Pohyb</th>
+                        <th>Odkud</th>
+                        <th>Kam</th>
+                        <th>Reference</th>
+                        <th>Uživatel</th>
+                        <th>ČK</th>
+                        <th>Poznámka</th>
+                    </tr>
+                </thead>
+                <tbody id="boxHistoryBody">
+                    <tr>
+                        <td colspan="8">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="box-detail.js"></script>
+</body>
+</html>
+

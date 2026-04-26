@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Historie</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <h1>WMS Vulkán</h1>
+    <nav>
+        <a href="/">Přehled beden</a>
+        <a href="/receipt.html">Příjem</a>
+        <a href="/putaway.html">Zaskladnění</a>
+        <a href="/transfer.html">Přeskladnění</a>
+        <a href="/history.html">Historie</a>
+    </nav>
+</header>
+
+<main class="container">
+    <section class="panel">
+        <div class="toolbar-row">
+            <input type="text" id="historySearch" placeholder="Hledat podle bedny, PN, šarže, zakázky, lokace, poznámky..." />
+            <button class="btn btn-primary" onclick="loadHistory()">Obnovit</button>
+            <button class="btn btn-primary" onclick="exportHistory()">Export CSV</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Historie pohybů</h2>
+            <span id="historyCount">Načítám...</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Bedna</th>
+                        <th>PN</th>
+                        <th>Šarže</th>
+                        <th>Cavity</th>
+                        <th>Zakázka</th>
+                        <th>Ks</th>
+                        <th>Pohyb</th>
+                        <th>Odkud</th>
+                        <th>Kam</th>
+                        <th>Obsahový stav</th>
+                        <th>Logistický stav</th>
+                        <th>Kvalitativní stav</th>
+                        <th>Číslo ČK</th>
+                        <th>Uživatel</th>
+                        <th>Poznámka</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr>
+                        <td colspan="16">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="history.js"></script>
+</body>
+</html>

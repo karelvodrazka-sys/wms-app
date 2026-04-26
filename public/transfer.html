@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Přeskladnění</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <h1>WMS Vulkán</h1>
+    <nav>
+        <a href="/">Přehled beden</a>
+        <a href="/receipt.html">Příjem</a>
+        <a href="/putaway.html">Zaskladnění</a>
+        <a href="/transfer.html">Přeskladnění</a>
+        <a href="/history.html">Historie</a>
+    </nav>
+</header>
+
+<main class="container">
+    <section class="panel">
+        <div class="toolbar-row">
+            <button class="btn btn-primary" onclick="loadPendingTransfers()">Obnovit</button>
+            <button class="btn btn-primary" onclick="confirmSelectedTransfers()">Potvrdit vybrané přeskladnění</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Bedny čekající na dokončení přeskladnění</h2>
+            <span id="transferCount">Načítám...</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onclick="toggleAllTransfers(this)" /></th>
+                        <th>Bedna</th>
+                        <th>PN</th>
+                        <th>Šarže</th>
+                        <th>Cavity</th>
+                        <th>Ks</th>
+                        <th>Aktuální lokace</th>
+                        <th>Cílová lokace</th>
+                        <th>Změnit lokaci</th>
+                        <th>Zrušit</th>
+                    </tr>
+                </thead>
+                <tbody id="transferTableBody">
+                    <tr>
+                        <td colspan="10">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="transfer.js"></script>
+</body>
+</html>

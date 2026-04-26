@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Příjem</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <h1>WMS Vulkán</h1>
+    <nav>
+        <a href="/">Přehled beden</a>
+        <a href="/receipt.html">Příjem</a>
+        <a href="/putaway.html">Zaskladnění</a>
+        <a href="/transfer.html">Přeskladnění</a>
+        <a href="/history.html">Historie</a>
+    </nav>
+</header>
+
+<main class="container">
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Příjem již existující bedny</h2>
+        </div>
+
+        <div class="form">
+            <div class="toolbar-row">
+                <input id="returnBoxNumber" placeholder="Číslo bedny (scan / ručně)" />
+                <button class="btn btn-primary" onclick="loadReturnBox()">Načíst bednu</button>
+
+                <input id="deliveryNumber" placeholder="Číslo dodávky (DL...)" />
+                <button class="btn btn-primary" onclick="loadDelivery()">Načíst dodávku</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bedna</th>
+                            <th>PN</th>
+                            <th>Šarže</th>
+                            <th>Cavity</th>
+                            <th>Zakázka</th>
+                            <th>Ks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="existingBoxesBody">
+                        <tr>
+                            <td colspan="6">Zatím nejsou načtené žádné bedny.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-primary" onclick="prepareExistingBoxesForPutaway()">
+                Připravit k zaskladnění
+            </button>
+
+            <p id="existingResult"></p>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top: 20px;">
+        <div class="card-header">
+            <h2>Vytvoření nové bedny</h2>
+        </div>
+
+        <div class="form">
+            <input id="partNumberId" placeholder="PartNumberId (např. 1)" />
+            <input id="batch" placeholder="Šarže (např. 03-11)" />
+            <input id="cavity" placeholder="Cavity (1-8)" value="1" />
+            <input id="orderNumber" placeholder="Zakázka" />
+            <input id="castingDate" type="date" />
+            <input id="quantity" placeholder="Počet ks" />
+
+            <select id="boxContentStatusId">
+                <option value="3">Odlitek</option>
+                <option value="1">WIP apretace</option>
+                <option value="2">WIP obrobna</option>
+            </select>
+
+            <select id="boxQualityStatusId">
+                <option value="1">Volná</option>
+                <option value="2">Červená karta</option>
+                <option value="3">3D</option>
+                <option value="4">Před impregnací</option>
+                <option value="5">Po impregnaci</option>
+            </select>
+
+            <input id="redCardNumber" placeholder="Číslo červené karty (nepovinné)" />
+
+            <button onclick="createBox()" class="btn btn-primary">Vytvořit bednu</button>
+
+            <p id="result"></p>
+        </div>
+    </section>
+
+</main>
+
+<script src="receipt.js"></script>
+</body>
+</html>
