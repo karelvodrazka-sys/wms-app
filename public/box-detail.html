@@ -11,9 +11,16 @@
     <nav>
         <a href="/">Přehled beden</a>
         <a href="/receipt.html">Příjem</a>
+        <a href="/production-box.html">Výroba - nová bedna</a>
+        <a href="/production-receipt.html">Výroba - příjem</a>
+        <a href="/production-box-edit.html">Výroba - úprava bedny</a>
+        <a href="/production-consumption.html">Výroba - spotřeba</a>
         <a href="/putaway.html">Zaskladnění</a>
         <a href="/transfer.html">Přeskladnění</a>
+        <a href="/delivery.html">Výdej</a>
+        <a href="/delivery-overview.html">Přehled dodávek</a>
         <a href="/history.html">Historie</a>
+        <a href="/masterdata.html">Číselníky</a>
     </nav>
 </header>
 
@@ -21,6 +28,9 @@
     <section class="card">
         <div class="card-header">
             <h2 id="boxTitle">Detail bedny</h2>
+            <button class="btn btn-primary" onclick="printBoxLabel()">
+                Tisk štítku
+            </button>
             <a id="backBtn" class="btn btn-primary">Zpět</a>
         </div>
 

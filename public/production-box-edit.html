@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Výroba - úprava bedny</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html" class="active-main-nav">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn" onclick="window.location.href='/production-box.html'">Nová bedna</button>
+    <button class="tab-btn" onclick="window.location.href='/production-receipt.html'">Příjem</button>
+    <button class="tab-btn active" onclick="window.location.href='/production-box-edit.html'">Úprava bedny</button>
+    <button class="tab-btn" onclick="window.location.href='/production-consumption.html'">Spotřeba</button>
+    </div>
+
+    <section class="card production-box-card">
+        <div class="card-header">
+            <h2>Výroba - úprava bedny</h2>
+        </div>
+
+        <div class="form new-box-form">
+            <div class="toolbar-row" style="gap: 12px;">
+                <input id="boxNumberInput" placeholder="Naskenuj číslo bedny" />
+            </div>
+
+            <div id="boxInfo" style="margin-top: 18px;"></div>
+
+            <div id="editForm" class="hidden" style="margin-top: 18px;">
+                <div class="form-grid-3">
+                    <div>
+                        <label>Počet ks</label>
+                        <input id="quantity" type="number" min="0" />
+                    </div>
+
+                    <div>
+                        <label>Obsahový stav</label>
+                        <select id="boxContentStatusId"></select>
+                    </div>
+
+                    <div>
+                        <label>Výrobní lokace</label>
+                        <select id="targetLocationId"></select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary create-box-btn" style="margin-top: 28px;" onclick="saveProductionBoxEdit()">
+                    Uložit změny
+                </button>
+            </div>
+
+            <p id="result"></p>
+        </div>
+    </section>
+</main>
+
+<script src="production-box-edit.js"></script>
+</body>
+</html>

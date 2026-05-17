@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Výroba - nová bedna</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html" class="active-main-nav">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn active" onclick="window.location.href='/production-box.html'">Nová bedna</button>
+    <button class="tab-btn" onclick="window.location.href='/production-receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/production-box-edit.html'">Úprava bedny</button>
+    <button class="tab-btn" onclick="window.location.href='/production-consumption.html'">Spotřeba</button>
+    </div>
+
+    <section class="card production-box-card">
+        <div class="card-header">
+            <h2>Výroba - nová bedna</h2>
+        </div>
+
+        <div class="form new-box-form">
+
+            <div class="form-grid-2">
+                <div>
+                    <label>Zakázka</label>
+                    <input id="orderNumber" placeholder="Naskenuj zakázku" />
+                </div>
+
+                <div>
+                    <label>Položka</label>
+                    <input id="partNumberScan" placeholder="Naskenuj položku" />
+                    <select id="partNumberSelect" style="display:none;">
+                        <option value="">Načítám položky...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Šarže</label>
+                    <input id="batch" placeholder="Naskenuj šarži" />
+                </div>
+
+                <div class="date-row">
+                    <div class="date-input-wrap">
+                        <label>Otisk</label>
+                        <input id="cavity" placeholder="Otisk" value="1" readonly />
+                    </div>
+
+                    <div id="cavityButtons" class="date-buttons"></div>
+                </div>
+            </div>
+
+            <div class="date-row">
+                <div class="date-input-wrap">
+                    <label>Datum lití</label>
+                    <input id="castingDate" type="date" />
+                </div>
+
+                <div id="dateButtons" class="date-buttons"></div>
+            </div>
+
+            <div class="form-grid-3">
+                <div>
+                    <label>Počet ks</label>
+                    <input id="quantity" placeholder="Počet ks" />
+                </div>
+
+                <div>
+                    <label>Obsahový stav</label>
+                    <select id="boxContentStatusId">
+                        <option value="3">Odlitek</option>
+                        <option value="1">WIP apretace</option>
+                        <option value="2">WIP obrobna</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Kvalitativní stav</label>
+                    <select id="boxQualityStatusId">
+                        <option value="1">Volná</option>
+                        <option value="2">Červená karta</option>
+                        <option value="3">3D</option>
+                        <option value="4">Před impregnací</option>
+                        <option value="5">Po impregnaci</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label>Číslo červené karty</label>
+                <input id="redCardNumber" placeholder="Číslo červené karty (nepovinné)" />
+            </div>
+
+            <button onclick="createProductionBox()" class="btn btn-primary create-box-btn">
+                Vytvořit bednu ve výrobě
+            </button>
+
+            <p id="result"></p>
+        </div>
+    </section>
+
+</main>
+
+<script src="production-box.js"></script>
+</body>
+</html>

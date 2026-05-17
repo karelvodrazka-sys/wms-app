@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Přehled dodávek</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html" class="active-main-nav">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    <div class="tab-row">
+    <button class="tab-btn active" onclick="window.location.href='/delivery-overview.html'">Přehled dodávek</button>
+    </div>
+    <section class="card">
+        <div class="card-header">
+            <h2>Přehled dodávek</h2>
+            <span id="deliveryOverviewCount">Načítám...</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dodávka</th>
+                        <th>Destinace</th>
+                        <th>Místo dodání</th>
+                        <th>Jazyk</th>
+                        <th>Počet beden</th>
+                        <th>Stav</th>
+                        <th>Vytvořeno</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody id="deliveryOverviewBody">
+                    <tr>
+                        <td colspan="8">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="delivery-overview.js"></script>
+</body>
+</html>

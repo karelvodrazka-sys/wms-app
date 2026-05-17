@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Detail dodávky</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav>
+            <a href="/">Přehled beden</a>
+            <a href="/receipt.html">Příjem</a>
+            <a href="/production-box.html">Výroba - nová bedna</a>
+            <a href="/production-receipt.html">Výroba - příjem</a>
+            <a href="/production-box-edit.html">Výroba - úprava bedny</a>
+            <a href="/production-consumption.html">Výroba - spotřeba</a>
+            <a href="/putaway.html">Zaskladnění</a>
+            <a href="/transfer.html">Přeskladnění</a>
+            <a href="/delivery.html">Výdej</a>
+            <a href="/delivery-overview.html" class="active-nav">Přehled dodávek</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <section class="card">
+        <div class="card-header">
+            <h2 id="deliveryTitle">Detail dodávky</h2>
+
+            <button
+                id="printDeliveryBtn"
+                class="btn btn-primary"
+            >
+                Tisk dodacího listu
+            </button>
+        </div>
+
+        <div id="deliveryInfo" class="detail-grid"></div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Bedny v dodávce</h2>
+            <span id="boxCount">0 beden</span>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bedna</th>
+                        <th>Položka</th>
+                        <th>Šarže</th>
+                        <th>Otisk</th>
+                        <th>Zakázka</th>
+                        <th>Počet ks</th>
+                    </tr>
+                </thead>
+
+                <tbody id="deliveryBoxesBody">
+                    <tr>
+                        <td colspan="6">Načítám...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<script src="delivery-detail.js"></script>
+</body>
+</html>

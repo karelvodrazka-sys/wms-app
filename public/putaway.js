@@ -207,9 +207,17 @@ async function confirmSelectedPutaway() {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Hromadné zaskladnění se nepodařilo.');
+       if (!response.ok) {
+        const errorMessage = data.error || 'Hromadné zaskladnění se nepodařilo.';
+
+        if (errorMessage.toLowerCase().includes('lokace je plna')) {
+        throw new Error(
+            'Lokace je plná. Vyber u dané bedny jinou lokaci v rozbalovacím seznamu, klikni Uložit a potom potvrď zaskladnění znovu.'
+            );
         }
+
+    throw new Error(errorMessage);
+}
 
         alert(data.message || 'Hromadné zaskladnění dokončeno.');
         loadPendingBoxes();

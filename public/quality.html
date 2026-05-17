@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Kvalita</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html" class="active-main-nav">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+        <button class="tab-btn active"
+            onclick="showTab('singleQualityTab', this)">
+            Změna bedny
+        </button>
+
+        <button class="tab-btn"
+            onclick="showTab('qualityOverviewTab', this)">
+            Přehled kvality
+        </button>
+    </div>
+
+    <!-- ZMĚNA BEDNY -->
+
+    <div id="singleQualityTab">
+
+        <section class="card production-box-card">
+
+            <div class="card-header">
+                <h2>Kvalita - změna bedny</h2>
+            </div>
+
+            <div class="form new-box-form">
+
+                <input id="boxNumberInput"
+                    placeholder="Naskenuj číslo bedny" />
+
+                <div id="boxInfo"
+                    style="margin-top: 18px;">
+                </div>
+
+                <div id="editForm"
+                    class="hidden"
+                    style="margin-top: 18px;">
+
+                    <div class="form-grid-2">
+
+                        <div>
+                            <label>Kvalitativní stav</label>
+                            <select id="boxQualityStatusId"></select>
+                        </div>
+
+                        <div>
+                            <label>Čísla ČK</label>
+
+                            <input id="redCardNumber"
+                                placeholder="347400-01,347401-02" />
+
+                            <small>
+                                Více karet odděluj čárkou
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <button class="btn btn-primary create-box-btn"
+                        style="margin-top: 28px;"
+                        onclick="saveQualityBoxEdit()">
+
+                        Uložit změny
+
+                    </button>
+
+                </div>
+
+                <p id="result"></p>
+
+            </div>
+
+        </section>
+
+    </div>
+
+    <!-- PŘEHLED KVALITY -->
+
+    <div id="qualityOverviewTab" class="hidden">
+
+        <section class="panel">
+
+        <div class="toolbar-row toolbar-space-between">
+            <div></div>
+
+            <div class="toolbar-actions">
+                <button class="btn" onclick="clearQualityFilters()">
+                    Vyčistit filtry
+                </button>
+            </div>
+        </div>
+
+            <div class="action-row">
+
+                <select id="qualityStatusBulk"
+                    class="select-modern">
+
+                    <option value="">
+                        Vyber kvalitativní stav
+                    </option>
+
+                    <option value="1">Volná</option>
+                    <option value="2">Červená karta</option>
+                    <option value="3">3D kontrola</option>
+                    <option value="4">Před impregnací</option>
+                    <option value="5">Po impregnaci</option>
+
+                </select>
+
+                <input id="redCardNumberBulk"
+                    class="select-modern"
+                    placeholder="Čísla ČK" />
+
+                <button id="qualityBtn"
+                    onclick="changeSelectedQualityStatus()"
+                    class="btn btn-primary">
+
+                    Změnit kvalitativní stav
+
+                </button>
+
+            </div>
+
+        </section>
+
+        <section class="card">
+
+            <div class="card-header">
+                <h2>Přehled kvality</h2>
+                <span id="boxCount">Načítám...</span>
+            </div>
+
+            <div class="table-wrapper">
+
+                <table id="boxesTable">
+
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" onclick="toggleAll(this)" />
+                        </th>
+                        <th>Bedna</th>
+                        <th>PN</th>
+                        <th>Šarže</th>
+                        <th>Otisk</th>
+                        <th>Zakázka</th>
+                        <th>Ks</th>
+                        <th>Kvalitativní stav</th>
+                        <th>Číslo ČK</th>
+                        <th>Sklad</th>
+                        <th>Lokace</th>
+                        <th>Akce</th>
+                    </tr>
+
+                    <tr class="column-filter-row">
+                        <th></th>
+                        <th><input class="quality-column-filter" data-field="BoxNumber" placeholder="00001;00002" /></th>
+                        <th><input class="quality-column-filter" data-field="PartNumber" placeholder="PN1;PN2" /></th>
+                        <th><input class="quality-column-filter" data-field="Batch" placeholder="03-11" /></th>
+                        <th><input class="quality-column-filter" data-field="Cavity" placeholder="1;2" /></th>
+                        <th><input class="quality-column-filter" data-field="OrderNumber" placeholder="zakázka" /></th>
+                        <th><input class="quality-column-filter" data-field="Quantity" placeholder="ks" /></th>
+                        <th><input class="quality-column-filter" data-field="BoxQualityStatus" placeholder="kvalita" /></th>
+                        <th><input class="quality-column-filter" data-field="RedCardNumber" placeholder="ČK" /></th>
+                        <th><input class="quality-column-filter" data-field="WarehouseName" placeholder="sklad" /></th>
+                        <th><input class="quality-column-filter" data-field="LocationCode" placeholder="lokace" /></th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                    <tbody id="boxesTableBody">
+
+                        <tr>
+                            <td colspan="12">
+                                Načítám data...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </div>
+
+</main>
+
+<script src="quality.js"></script>
+
+</body>
+</html>

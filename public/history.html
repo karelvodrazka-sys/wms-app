@@ -6,24 +6,35 @@
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<header class="topbar">
-    <h1>WMS Vulkán</h1>
-    <nav>
-        <a href="/">Přehled beden</a>
-        <a href="/receipt.html">Příjem</a>
-        <a href="/putaway.html">Zaskladnění</a>
-        <a href="/transfer.html">Přeskladnění</a>
-        <a href="/history.html">Historie</a>
+    <header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+    <nav class="main-nav">
+        <a href="/index.html">Přehled beden</a>
+        <a href="/receipt.html">Sklad</a>
+        <a href="/production-box.html">Výroba</a>
+        <a href="/quality.html">Kvalita</a>
+        <a href="/delivery-overview.html">Dodávky</a>
+        <a href="/history.html" class="active-main-nav">
+            Historie
+        </a>
+        <a href="/masterdata.html">Číselníky</a>
     </nav>
+    
+    </div>
+
 </header>
 
 <main class="container">
     <section class="panel">
-        <div class="toolbar-row">
-            <input type="text" id="historySearch" placeholder="Hledat podle bedny, PN, šarže, zakázky, lokace, poznámky..." />
-            <button class="btn btn-primary" onclick="loadHistory()">Obnovit</button>
-            <button class="btn btn-primary" onclick="exportHistory()">Export CSV</button>
-        </div>
+        <div class="toolbar-row toolbar-space-between">
+    <div></div>
+
+    <div class="toolbar-actions">
+        <button class="btn" onclick="clearHistoryFilters()">Vyčistit filtry</button>
+        <button class="btn btn-primary" onclick="exportHistory()">Export CSV</button>
+    </div>
+    </div>
     </section>
 
     <section class="card">
@@ -46,6 +57,8 @@
                         <th>Pohyb</th>
                         <th>Odkud</th>
                         <th>Kam</th>
+                        <th>Dodávka</th>
+                        <th>Destinace</th>
                         <th>Obsahový stav</th>
                         <th>Logistický stav</th>
                         <th>Kvalitativní stav</th>
@@ -53,10 +66,30 @@
                         <th>Uživatel</th>
                         <th>Poznámka</th>
                     </tr>
+                    <tr class="column-filter-row">
+                        <th><input class="column-filter" data-field="DoneAt" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="BoxNumber" placeholder="00001;00002" /></th>
+                        <th><input class="column-filter" data-field="PartNumber" placeholder="PN1;PN2" /></th>
+                        <th><input class="column-filter" data-field="Batch" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="Cavity" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="OrderNumber" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="Quantity" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="MovementTypeName" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="FromLocationCode" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="ToLocationCode" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="DeliveryNumber" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="DeliveryDestination" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="BoxContentStatus" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="CurrentLogisticStatus" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="CurrentQualityStatus" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="CurrentRedCardNumber" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="Username" placeholder="filtr" /></th>
+                        <th><input class="column-filter" data-field="Note" placeholder="filtr" /></th>
+                    </tr>
                 </thead>
                 <tbody id="historyBody">
                     <tr>
-                        <td colspan="16">Načítám data...</td>
+                        <td colspan="18">Načítám data...</td>
                     </tr>
                 </tbody>
             </table>

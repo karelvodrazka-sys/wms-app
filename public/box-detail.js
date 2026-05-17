@@ -47,7 +47,6 @@ async function loadBoxDetail() {
             ${detailItem('Číslo ČK', box.RedCardNumber)}
             ${detailItem('Sklad', box.WarehouseName)}
             ${detailItem('Lokace', box.LocationCode)}
-            ${detailItem('Sloupec', box.ColumnCode)}
             ${detailItem('Vytvořeno', formatDate(box.CreatedAt))}
             ${detailItem('Vytvořil', box.CreatedBy)}
             ${detailItem('Upraveno', formatDate(box.UpdatedAt))}
@@ -123,4 +122,16 @@ if (!boxId) {
 } else {
     loadBoxDetail();
     loadBoxHistory();
+}
+
+function printBoxLabel() {
+    const params = new URLSearchParams(window.location.search);
+    const boxId = params.get('id');
+
+    if (!boxId) {
+        alert('Chybí ID bedny.');
+        return;
+    }
+
+    window.open(`/box-label.html?id=${boxId}`, '_blank');
 }

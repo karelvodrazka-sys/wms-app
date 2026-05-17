@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Výroba - spotřeba</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html" class="active-main-nav">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn" onclick="window.location.href='/production-box.html'">Nová bedna</button>
+    <button class="tab-btn" onclick="window.location.href='/production-receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/production-box-edit.html'">Úprava bedny</button>
+    <button class="tab-btn active" onclick="window.location.href='/production-consumption.html'">Spotřeba</button>
+    </div>
+
+    <section class="card production-box-card">
+        <div class="card-header">
+            <h2>Výroba - spotřeba</h2>
+            <span id="boxCount">0 beden</span>
+        </div>
+
+        <div class="form new-box-form">
+            <input id="boxNumberInput" placeholder="Naskenuj číslo bedny" />
+
+            <div id="result" style="margin-top: 18px;"></div>
+
+            <div class="table-wrapper" style="margin-top: 18px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bedna</th>
+                            <th>PN</th>
+                            <th>Šarže</th>
+                            <th>Otisk</th>
+                            <th>Zakázka</th>
+                            <th>Ks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consumptionBody">
+                        <tr>
+                            <td colspan="6">Zatím nejsou načtené žádné bedny.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-primary create-box-btn" style="margin-top: 28px;" onclick="consumeBoxes()">
+                Spotřebováno
+            </button>
+        </div>
+    </section>
+</main>
+
+<script src="production-consumption.js"></script>
+</body>
+</html>

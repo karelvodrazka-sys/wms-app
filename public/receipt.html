@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="cs">
 <head>
     <meta charset="UTF-8" />
@@ -8,19 +8,36 @@
 <body>
 
 <header class="topbar">
-    <h1>WMS Vulkán</h1>
-    <nav>
-        <a href="/">Přehled beden</a>
-        <a href="/receipt.html">Příjem</a>
-        <a href="/putaway.html">Zaskladnění</a>
-        <a href="/transfer.html">Přeskladnění</a>
-        <a href="/history.html">Historie</a>
-    </nav>
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html" class="active-main-nav">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
 </header>
 
 <main class="container">
 
-    <section class="card">
+    <div class="tab-row">
+    <button class="tab-btn active" onclick="window.location.href='/receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/putaway.html'">Zaskladnění</button>
+    <button class="tab-btn" onclick="window.location.href='/transfer.html'">Přeskladnění</button>
+    <button class="tab-btn" onclick="window.location.href='/delivery.html'">Výdej</button>
+    </div>
+
+    <div class="view-switch">
+        <button id="btnExisting" class="btn btn-primary">Příjem existující</button>
+        <button id="btnNew" class="btn">Nová bedna</button>
+    </div>
+
+    <section id="existingView" class="card">
         <div class="card-header">
             <h2>Příjem již existující bedny</h2>
         </div>
@@ -62,36 +79,85 @@
         </div>
     </section>
 
-    <section class="card" style="margin-top: 20px;">
+    <section id="newBoxView" class="card" style="margin-top: 20px; display: none;">
         <div class="card-header">
             <h2>Vytvoření nové bedny</h2>
         </div>
 
-        <div class="form">
-            <input id="partNumberId" placeholder="PartNumberId (např. 1)" />
-            <input id="batch" placeholder="Šarže (např. 03-11)" />
-            <input id="cavity" placeholder="Cavity (1-8)" value="1" />
-            <input id="orderNumber" placeholder="Zakázka" />
-            <input id="castingDate" type="date" />
-            <input id="quantity" placeholder="Počet ks" />
+        <div class="form new-box-form">
 
-            <select id="boxContentStatusId">
-                <option value="3">Odlitek</option>
-                <option value="1">WIP apretace</option>
-                <option value="2">WIP obrobna</option>
-            </select>
+        <div class="form-grid-2">
+            <div>
+                <label>Zakázka</label>
+                <input id="orderNumber" placeholder="Naskenuj zakázku" />
+            </div>
 
-            <select id="boxQualityStatusId">
-                <option value="1">Volná</option>
-                <option value="2">Červená karta</option>
-                <option value="3">3D</option>
-                <option value="4">Před impregnací</option>
-                <option value="5">Po impregnaci</option>
-            </select>
+            <div>
+                <label>Položka</label>
+                <input id="partNumberScan" placeholder="Naskenuj položku" />
+                <select id="partNumberSelect" style="display: none;">
+                    <option value="">Načítám položky...</option>
+                </select>
+            </div>
 
-            <input id="redCardNumber" placeholder="Číslo červené karty (nepovinné)" />
+            <div>
+                <label>Šarže</label>
+                <input id="batch" placeholder="Naskenuj šarži" />
+            </div>
+        </div>
+            <div class="date-row">
+            <div class="date-input-wrap">
+                <label>Otisk</label>
+                <input id="cavity" placeholder="Otisk" value="1" readonly />
+            </div>
 
-            <button onclick="createBox()" class="btn btn-primary">Vytvořit bednu</button>
+            <div id="cavityButtons" class="date-buttons"></div>
+            </div>
+
+            <div class="date-row">
+                <div class="date-input-wrap">
+                    <label>Datum lití</label>
+                    <input id="castingDate" type="date" />
+                </div>
+
+                <div id="dateButtons" class="date-buttons"></div>
+            </div>
+
+            <div class="form-grid-3">
+                <div>
+                    <label>Počet ks</label>
+                    <input id="quantity" placeholder="Počet ks" />
+                </div>
+
+                <div>
+                    <label>Obsahový stav</label>
+                    <select id="boxContentStatusId">
+                        <option value="3">Odlitek</option>
+                        <option value="1">WIP apretace</option>
+                        <option value="2">WIP obrobna</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Kvalitativní stav</label>
+                    <select id="boxQualityStatusId">
+                        <option value="1">Volná</option>
+                        <option value="2">Červená karta</option>
+                        <option value="3">3D</option>
+                        <option value="4">Před impregnací</option>
+                        <option value="5">Po impregnaci</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label>Číslo červené karty</label>
+                <input id="redCardNumber" placeholder="Číslo červené karty (nepovinné)" />
+            </div>
+
+            <button onclick="createBox()" class="btn btn-primary create-box-btn">
+                Vytvořit bednu
+            </button>
 
             <p id="result"></p>
         </div>

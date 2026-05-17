@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Štítek bedny</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            color: #111;
+        }
+
+        .label {
+            width: 100mm;
+            min-height: 70mm;
+            border: 2px solid #111;
+            padding: 8mm;
+            box-sizing: border-box;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 4mm;
+        }
+
+        .box-number {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 2mm;
+        }
+
+        .barcode {
+            margin-bottom: 4mm;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 35mm 1fr;
+            gap: 2mm 4mm;
+            font-size: 15px;
+        }
+
+        .label-name {
+            font-weight: 700;
+        }
+
+        .print-actions {
+            margin: 20px;
+        }
+
+        @media print {
+            .print-actions {
+                display: none;
+            }
+
+            body {
+                margin: 0;
+            }
+
+            .label {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-actions">
+    <button onclick="window.print()">Tisk / PDF</button>
+</div>
+
+<div class="label">
+    <div class="title">Štítek bedny</div>
+
+    <div id="boxNumber" class="box-number"></div>
+    <svg id="boxBarcode" class="barcode"></svg>
+
+    <div class="grid">
+        <div class="label-name">PN:</div><div id="partNumber"></div>
+        <div class="label-name">Šarže:</div><div id="batch"></div>
+        <div class="label-name">Otisk:</div><div id="cavity"></div>
+        <div class="label-name">Zakázka:</div><div id="orderNumber"></div>
+        <div class="label-name">Ks:</div><div id="quantity"></div>
+    </div>
+</div>
+
+<script src="box-label.js"></script>
+</body>
+</html>

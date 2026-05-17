@@ -116,8 +116,16 @@ async function confirmSelectedTransfers() {
     const data = await response.json();
 
     if (!response.ok) {
-        alert(data.error || 'Potvrzení se nepodařilo.');
+    const errorMessage = data.error || 'Potvrzení se nepodařilo.';
+
+    if (errorMessage.toLowerCase().includes('cilova lokace je plna') ||
+        errorMessage.toLowerCase().includes('lokace je plna')) {
+        alert('Cílová lokace je plná. Vyber u dané bedny jinou lokaci, klikni Uložit a potom potvrď přeskladnění znovu.');
         return;
+    }
+
+    alert(errorMessage);
+    return;
     }
 
     alert(data.message || 'Přeskladnění potvrzeno.');

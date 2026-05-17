@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Výroba - příjem</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html" class="active-main-nav">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn" onclick="window.location.href='/production-box.html'">Nová bedna</button>
+    <button class="tab-btn active" onclick="window.location.href='/production-receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/production-box-edit.html'">Úprava bedny</button>
+    <button class="tab-btn" onclick="window.location.href='/production-consumption.html'">Spotřeba</button>
+    </div>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Výroba - příjem</h2>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px; gap: 12px;">
+            <input id="boxNumberInput" placeholder="Číslo bedny (scan / ručně)" />
+            <button class="btn btn-primary" onclick="loadBox()">Načíst bednu</button>
+
+            <input id="deliveryNumberInput" placeholder="Číslo dodávky (DL...)" />
+            <button class="btn btn-primary" onclick="loadDelivery()">Načíst dodávku</button>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px; gap: 12px;">
+            <select id="targetProductionLocation">
+                <option value="">Načítám výrobní lokace...</option>
+            </select>
+            <button class="btn" onclick="saveDefaultLocation()">Uložit jako moji výchozí lokaci</button>
+            <span id="defaultLocationInfo"></span>
+        </div>
+
+        <div id="result" style="padding: 0 16px 16px;"></div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bedna</th>
+                        <th>PN</th>
+                        <th>Šarže</th>
+                        <th>Otisk</th>
+                        <th>Zakázka</th>
+                        <th>Ks</th>
+                    </tr>
+                </thead>
+                <tbody id="productionReceiptBody">
+                    <tr>
+                        <td colspan="6">Zatím nejsou načtené žádné bedny.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="padding: 16px;">
+            <button class="btn btn-primary create-box-btn" onclick="completeProductionReceipt()">
+                Dokončit příjem
+            </button>
+        </div>
+    </section>
+</main>
+
+<script src="production-receipt.js"></script>
+</body>
+</html>

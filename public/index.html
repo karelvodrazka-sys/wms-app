@@ -8,29 +8,35 @@
 </head>
 <body>
     <header class="topbar">
+    <div class="topbar-left">
         <h1>WMS Vulkán</h1>
-        <nav>
-            <a href="/">Přehled beden</a>
-            <a href="/receipt.html">Příjem</a>
-            <a href="/putaway.html">Zaskladnění</a>
-            <a href="/transfer.html">Přeskladnění</a>
-            <a href="/history.html">Historie</a>
-        </nav>
-    </header>
+
+    <nav class="main-nav">
+        <a href="/" class="active-main-nav">Přehled beden</a>
+        <a href="/receipt.html">Sklad</a>
+        <a href="/production-box.html">Výroba</a>
+        <a href="/quality.html">Kvalita</a>
+        <a href="/delivery-overview.html">Dodávky</a>
+        <a href="/history.html">Historie</a>
+        <a href="/masterdata.html">Číselníky</a>
+    </nav>
+
+    </div>
+
+    <div class="topbar-right">
+        <span id="userInfo"></span>
+    </div>
+        </header>
 
     <main class="container">
         <section class="panel">
-            <div class="toolbar-row">
-                <input type="text" id="searchInput" placeholder="Hledat podle čísla bedny, PN, šarže..." />
-                <button id="reloadBtn" class="btn btn-primary">Obnovit</button>
-            </div>
+            <div class="toolbar-row toolbar-space-between">
+                <div></div>
 
-            <div class="filter-row">
-                <button class="filter-chip active" onclick="setFilter('ALL', this)">Vše</button>
-                <button class="filter-chip" onclick="setFilter('WAITING', this)">Čeká na zaskladnění</button>
-                <button class="filter-chip" onclick="setFilter('STOCK', this)">Zásoba</button>
-                <button class="filter-chip" onclick="setFilter('TRANSFER', this)">Přesunuto</button>
-                <button class="filter-chip" onclick="setFilter('CK', this)">ČK</button>
+                <div class="toolbar-actions">
+                    <button class="btn" onclick="clearBoxFilters()">Vyčistit filtry</button>
+                    <button class="btn btn-primary" onclick="window.location.href='/boxes/export'">Export CSV</button>
+                </div>
             </div>
 
             <div class="action-row">
@@ -40,28 +46,22 @@
                     <option value="2">Do impregnace</option>
                     <option value="3">Do skladu</option>
                 </select>
+                
+                <select id="deliveryPlace" class="select-modern">
+                    <option value="">Vyber místo dodání</option>
+                </select>
 
-                <button onclick="issueSelected()" class="btn btn-primary">
+                <select id="documentLanguage" class="select-modern">
+                    <option value="CZ">CZ - česky</option>
+                    <option value="EN">EN - English</option>
+                </select>
+
+                <button id="issueBtn" onclick="issueSelected()" class="btn btn-primary">
                     Vydat vybrané bedny
                 </button>
 
-                <button onclick="transferSelected()" class="btn btn-primary">
+                <button id="transferBtn" onclick="transferSelected()" class="btn btn-primary">
                     Přeskladnit vybrané
-                </button>
-
-                <select id="qualityStatusBulk" class="select-modern">
-                    <option value="">Vyber kvalitativní stav</option>
-                    <option value="1">Volná</option>
-                    <option value="2">Červená karta</option>
-                    <option value="3">3D kontrola</option>
-                    <option value="4">Před impregnací</option>
-                    <option value="5">Po impregnaci</option>
-                </select>
-
-                <input id="redCardNumberBulk" class="select-modern" placeholder="Číslo ČK (volitelné)" />
-
-                <button onclick="changeSelectedQualityStatus()" class="btn btn-primary">
-                    Změnit kvalitativní stav
                 </button>
             </div>
         </section>
@@ -91,12 +91,26 @@
                             <th>Číslo ČK</th>
                             <th>Sklad</th>
                             <th>Lokace</th>
-                            <th>Sloupec</th>
                         </tr>
+                        <tr class="column-filter-row">
+                        <th></th>
+                        <th><input class="column-filter" data-field="BoxNumber" placeholder="00001;00002" /></th>
+                        <th><input class="column-filter" data-field="PartNumber" placeholder="PN1;PN2" /></th>
+                        <th><input class="column-filter" data-field="Batch" placeholder="03-11;05-22" /></th>
+                        <th><input class="column-filter" data-field="Cavity" placeholder="1;2" /></th>
+                        <th><input class="column-filter" data-field="OrderNumber" placeholder="zakázka" /></th>
+                        <th><input class="column-filter" data-field="Quantity" placeholder="ks" /></th>
+                        <th><input class="column-filter" data-field="BoxContentStatus" placeholder="obsah" /></th>
+                        <th><input class="column-filter" data-field="BoxLogisticStatus" placeholder="logistika" /></th>
+                        <th><input class="column-filter" data-field="BoxQualityStatus" placeholder="kvalita" /></th>
+                        <th><input class="column-filter" data-field="RedCardNumber" placeholder="ČK" /></th>
+                        <th><input class="column-filter" data-field="WarehouseName" placeholder="sklad" /></th>
+                        <th><input class="column-filter" data-field="LocationCode" placeholder="lokace" /></th>
+                    </tr>
                     </thead>
                     <tbody id="boxesTableBody">
                         <tr>
-                            <td colspan="14">Načítám data...</td>
+                            <td colspan="13">Načítám data...</td>
                         </tr>
                     </tbody>
                 </table>

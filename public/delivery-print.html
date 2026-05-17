@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <meta charset="UTF-8" />
+    <title>Dodací list</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+        body {
+            background: white;
+            color: #111827;
+            font-family: Arial, sans-serif;
+        }
+
+        .print-page {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 30px;
+        }
+
+        .print-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #111827;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .print-title {
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .print-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .print-box {
+            border: 1px solid #d1d5db;
+            padding: 14px;
+            border-radius: 8px;
+        }
+
+        .print-box h3 {
+            margin-top: 0;
+        }
+
+        .print-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .print-table th,
+        .print-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .print-table th {
+            background: #f3f4f6;
+        }
+
+        .print-actions {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        @media print {
+            .print-actions {
+                display: none;
+            }
+
+            body {
+                margin: 0;
+            }
+
+            .print-page {
+                margin: 0;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-page">
+    <div class="print-actions">
+        <button class="btn btn-primary" onclick="window.print()">Tisk / PDF</button>
+    </div>
+
+    <div class="print-header">
+        <div>
+            <div id="docTitle" class="print-title">Dodací list</div>
+            <div id="deliveryNumber"></div>
+            <svg id="deliveryBarcode"></svg>
+            <div id="deliveryDate"></div>
+        </div>
+        <div>
+            <strong>WMS Vulkán</strong>
+        </div>
+    </div>
+
+    <div class="print-grid">
+        <div class="print-box">
+            <h3 id="supplierTitle">Dodavatel</h3>
+            <div><strong>KSM Castings CZ s.r.o.</strong></div>
+            <div>Hrádek nad Nisou</div>
+            <div>Česká republika</div>
+        </div>
+
+        <div class="print-box">
+            <h3 id="recipientTitle">Příjemce</h3>
+            <div id="recipientCompany"></div>
+            <div id="recipientStreet"></div>
+            <div id="recipientCity"></div>
+            <div id="recipientCountry"></div>
+            <div id="destinationName"></div>
+        </div>
+    </div>
+
+    <h3 id="boxListTitle">Seznam beden</h3>
+
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th>Bedna</th>
+                <th>PN</th>
+                <th>Šarže</th>
+                <th>Otisk</th>
+                <th>Zakázka</th>
+                <th>Ks</th>
+            </tr>
+        </thead>
+        <tbody id="boxesBody"></tbody>
+    </table>
+</div>
+
+<script src="delivery-print.js"></script>
+</body>
+</html>

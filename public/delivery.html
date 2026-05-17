@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Výdej / Dodávka</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html" class="active-main-nav">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn" onclick="window.location.href='/receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/putaway.html'">Zaskladnění</button>
+    <button class="tab-btn" onclick="window.location.href='/transfer.html'">Přeskladnění</button>
+    <button class="tab-btn active" onclick="window.location.href='/delivery.html'">Výdej</button>
+    </div>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Nová dodávka</h2>
+        </div>
+
+        <div class="form">
+            <select id="deliveryDestination">
+                <option value="">Načítám destinace...</option>
+            </select>
+
+            <select id="deliveryPlace">
+                <option value="">-- vyber místo dodání --</option>
+            </select>
+
+            <select id="documentLanguage">
+                <option value="CZ">CZ - česky</option>
+                <option value="EN">EN - English</option>
+            </select>
+
+            <button class="btn btn-primary" onclick="createDelivery()">
+                Založit dodávku
+            </button>
+
+            <p id="deliveryInfo"></p>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:20px;">
+        <div class="card-header">
+            <h2>Skenování beden</h2>
+        </div>
+
+        <div class="form">
+            <input id="scanBoxInput" placeholder="Skenuj číslo bedny..." />
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bedna</th>
+                            <th>PN</th>
+                            <th>Šarže</th>
+                            <th>Ks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deliveryBoxesBody">
+                        <tr>
+                            <td colspan="4">Zatím žádné bedny</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-primary" onclick="confirmDelivery()">
+                Potvrdit dodávku
+            </button>
+        </div>
+    </section>
+
+</main>
+
+<script src="delivery.js"></script>
+</body>
+</html>

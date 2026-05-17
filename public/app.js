@@ -4,7 +4,65 @@ const reloadBtn = document.getElementById('reloadBtn');
 const searchInput = document.getElementById('searchInput');
 
 let allBoxes = [];
+let currentUser = null;
 let currentFilter = 'ALL';
+
+function matchesMultiFilter(value, filterText) {
+    if (!filterText) return true;
+
+    const terms = filterText
+        .split(/[;,]/)
+        .map(x => x.trim().toLowerCase())
+        .filter(Boolean);
+
+    const text = String(value ?? '').toLowerCase();
+
+    return terms.some(term => text.includes(term));
+}
+
+function applyColumnFilters(data) {
+    const filters = Array.from(document.querySelectorAll('.column-filter'));
+
+    return data.filter(row =>
+        filters.every(input => {
+            const field = input.dataset.field;
+            const filterText = input.value;
+            return matchesMultiFilter(row[field], filterText);
+        })
+    );
+}
+
+function hasPermission(code) {
+    return currentUser?.permissions?.includes(code);
+}
+
+async function loadCurrentUser() {
+    const res = await fetch('/me');
+    currentUser = await res.json();
+
+    console.log('USER:', currentUser);
+
+    const userInfo = document.getElementById('userInfo');
+    if (userInfo && currentUser) {
+        userInfo.textContent = `${currentUser.displayName} (${currentUser.email})`;
+    }
+}
+
+function applyPermissions() {
+    const rules = [
+        { id: 'issueBtn', permission: 'DELIVERY_CREATE' },
+        { id: 'transferBtn', permission: 'TRANSFER_START' },
+        { id: 'destination', permission: 'DELIVERY_CREATE' },
+
+    ];
+
+    rules.forEach(rule => {
+        const el = document.getElementById(rule.id);
+        if (el && !hasPermission(rule.permission)) {
+            el.style.display = 'none';
+        }
+    });
+}
 
 function setFilter(filter, button = null) {
     currentFilter = filter;
@@ -50,7 +108,7 @@ function renderTable(data) {
     if (!data || data.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="14">Žádná data k zobrazení.</td>
+                <td colspan="13">Žádná data k zobrazení.</td>
             </tr>
         `;
         boxCount.textContent = '0 záznamů';
@@ -76,7 +134,6 @@ function renderTable(data) {
             <td>${box.RedCardNumber ?? ''}</td>
             <td>${box.WarehouseName ?? ''}</td>
             <td>${box.LocationCode ?? ''}</td>
-            <td>${box.ColumnCode ?? ''}</td>
         </tr>
     `).join('');
 
@@ -84,20 +141,7 @@ function renderTable(data) {
 }
 
 function applyFilter() {
-    const term = searchInput.value.trim().toLowerCase();
-
     let filtered = allBoxes;
-
-    // text filter
-    if (term) {
-        filtered = filtered.filter(box =>
-            (box.BoxNumber ?? '').toLowerCase().includes(term) ||
-            (box.PartNumber ?? '').toLowerCase().includes(term) ||
-            (box.Batch ?? '').toLowerCase().includes(term) ||
-            (box.OrderNumber ?? '').toLowerCase().includes(term) ||
-            (box.LocationCode ?? '').toLowerCase().includes(term)
-        );
-    }
 
     // QUICK FILTER
     if (currentFilter !== 'ALL') {
@@ -108,7 +152,7 @@ function applyFilter() {
                 case 'STOCK':
                     return box.BoxLogisticStatus === 'Zásoba';
                 case 'TRANSFER':
-                    return box.BoxLogisticStatus.includes('Přesun');
+                    return box.BoxLogisticStatus?.includes('Přesun');
                 case 'CK':
                     return box.BoxQualityStatus === 'Červená karta';
                 default:
@@ -117,6 +161,9 @@ function applyFilter() {
         });
     }
 
+    // COLUMN FILTERS
+    filtered = applyColumnFilters(filtered);
+
     renderTable(filtered);
 }
 
@@ -124,7 +171,7 @@ async function loadBoxes() {
     try {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="14">Načítám data...</td>
+                <td colspan="13">Načítám data...</td>
             </tr>
         `;
         boxCount.textContent = 'Načítám...';
@@ -142,7 +189,7 @@ async function loadBoxes() {
         console.error('Chyba při načítání beden:', error);
         tableBody.innerHTML = `
             <tr>
-                <td colspan="14">Nepodařilo se načíst data.</td>
+                <td colspan="13">Nepodařilo se načíst data.</td>
             </tr>
         `;
         boxCount.textContent = 'Chyba';
@@ -162,6 +209,9 @@ async function issueSelected() {
 
     const destinationId = parseInt(document.getElementById('destination').value, 10);
 
+    const deliveryPlaceId = parseInt(document.getElementById('deliveryPlace').value, 10);
+    const documentLanguage = document.getElementById('documentLanguage').value;
+
     if (selected.length === 0) {
         alert('Nevybral jsi žádné bedny.');
         return;
@@ -172,6 +222,11 @@ async function issueSelected() {
         return;
     }
 
+    if (!deliveryPlaceId) {
+        alert('Vyber místo dodání.');
+        return;
+    }
+
     try {
         // 1. založení dodávky
         const deliveryResponse = await fetch('/delivery', {
@@ -179,6 +234,8 @@ async function issueSelected() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 DeliveryDestinationId: destinationId,
+                DeliveryPlaceId: deliveryPlaceId,
+                DocumentLanguage: documentLanguage,
                 CreatedByUserId: 1
             })
         });
@@ -226,7 +283,16 @@ async function issueSelected() {
             throw new Error(confirmData.error || 'Nepodařilo se potvrdit dodávku.');
         }
 
-        alert(`Výdej hotový. Dodávka: ${deliveryData.data.DeliveryNumber}`);
+        if (confirm(`Výdej hotový. Dodávka: ${deliveryData.data.DeliveryNumber}. Chceš vytisknout dodací list?`)) {
+        window.open(`/delivery-print.html?id=${deliveryId}`, '_blank');
+        }
+        
+        document.getElementById('destination').value = '';
+        document.getElementById('deliveryPlace').innerHTML = `
+            <option value="">Vyber místo dodání</option>
+        `;
+        document.getElementById('documentLanguage').value = 'CZ';
+
         loadBoxes();
     } catch (err) {
         console.error('Chyba při výdeji:', err);
@@ -234,10 +300,38 @@ async function issueSelected() {
     }
 }
 
-reloadBtn.addEventListener('click', loadBoxes);
-searchInput.addEventListener('input', applyFilter);
+if (reloadBtn) {
+    reloadBtn.addEventListener('click', loadBoxes);
+}
 
-loadBoxes();
+if (searchInput) {
+    searchInput.addEventListener('input', applyFilter);
+}
+
+document.querySelectorAll('.column-filter').forEach(input => {
+    input.addEventListener('input', applyFilter);
+});
+
+async function initPage() {
+    await loadCurrentUser();
+    applyPermissions();
+    loadBoxes();
+
+    await loadDeliveryPlaces();
+
+    document.getElementById('destination').addEventListener('change', onDestinationChange);
+
+    document.getElementById('deliveryPlace').addEventListener('change', function () {
+        const selected = this.options[this.selectedIndex];
+        const lang = selected?.dataset?.lang;
+
+        if (lang) {
+            document.getElementById('documentLanguage').value = lang;
+        }
+    });
+}
+
+initPage();
 
 async function changeSelectedQualityStatus() {
     const selected = Array.from(document.querySelectorAll('.box-checkbox:checked'))
@@ -334,4 +428,47 @@ async function transferSelected() {
         console.error(err);
         alert('Chyba: ' + err.message);
     }
+}
+
+function clearBoxFilters() {
+    if (searchInput) {
+    searchInput.value = '';
+}
+
+    document.querySelectorAll('.column-filter').forEach(input => {
+        input.value = '';
+    });
+
+    applyFilter();
+}
+
+let deliveryPlaces = [];
+
+async function loadDeliveryPlaces() {
+    const res = await fetch('/masterdata/delivery-places');
+    const data = await res.json();
+
+    if (!res.ok) {
+        console.error(data.error || 'Nepodařilo se načíst místa dodání.');
+        return;
+    }
+
+    deliveryPlaces = data;
+}
+
+function onDestinationChange() {
+    const destinationId = parseInt(document.getElementById('destination').value, 10);
+    const placeSelect = document.getElementById('deliveryPlace');
+
+    const filteredPlaces = deliveryPlaces.filter(p =>
+        p.DeliveryDestinationId === destinationId && p.IsActive
+    );
+
+    placeSelect.innerHTML = `
+        <option value="">Vyber místo dodání</option>
+    ` + filteredPlaces.map(p => `
+        <option value="${p.Id}" data-lang="${p.DefaultLanguage}">
+            ${p.Name}${p.CompanyName ? ' - ' + p.CompanyName : ''}
+        </option>
+    `).join('');
 }

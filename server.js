@@ -267,7 +267,7 @@ app.post('/confirm-transfer', async (req, res) => {
 // 🔹 založení dodávky
 app.post('/delivery', async (req, res) => {
     try {
-        const { DeliveryDestinationId, CreatedByUserId } = req.body;
+        const { DeliveryDestinationId, DeliveryPlaceId, DocumentLanguage, CreatedByUserId } = req.body;
 
         if (!DeliveryDestinationId || !CreatedByUserId) {
             return res.status(400).json({
@@ -282,9 +282,24 @@ app.post('/delivery', async (req, res) => {
             .input('CreatedByUserId', sql.Int, CreatedByUserId)
             .execute('CreateDelivery');
 
+        const delivery = result.recordset[0];
+
+        if (DeliveryPlaceId || DocumentLanguage) {
+            await pool.request()
+                .input('DeliveryId', sql.Int, delivery.DeliveryId)
+                .input('DeliveryPlaceId', sql.Int, DeliveryPlaceId || null)
+                .input('DocumentLanguage', sql.NVarChar(2), DocumentLanguage || 'CZ')
+                .query(`
+                    UPDATE Deliveries
+                    SET DeliveryPlaceId = @DeliveryPlaceId,
+                        DocumentLanguage = @DocumentLanguage
+                    WHERE Id = @DeliveryId
+                `);
+        }
+
         res.json({
             success: true,
-            data: result.recordset[0]
+            data: delivery
         });
     } catch (err) {
         console.error('Chyba /delivery:', err);
@@ -865,13 +880,39 @@ app.get('/boxes/by-number/:boxNumber', async (req, res) => {
                     b.Cavity,
                     b.OrderNumber,
                     b.Quantity,
+
                     b.ReservedLocationId,
                     rl.Code AS ReservedLocationCode,
-                    bls.Code AS LogisticStatus
+
+                    b.BoxContentStatusId,
+                    b.BoxQualityStatusId,
+                    b.BoxLogisticStatusId,
+
+                    b.RedCardNumber,
+
+                    b.CurrentWarehouseId,
+                    b.CurrentLocationId,
+
+                    bcs.Name AS BoxContentStatus,
+                    bqs.Name AS BoxQualityStatus,
+                    bls.Name AS BoxLogisticStatus,
+
+                    bls.Code AS LogisticStatus,
+
+                    w.Name AS WarehouseName,
+                    l.Code AS LocationCode
+
                 FROM Boxes b
                 JOIN PartNumbers pn ON pn.Id = b.PartNumberId
                 JOIN BoxLogisticStatuses bls ON bls.Id = b.BoxLogisticStatusId
+
+                LEFT JOIN BoxContentStatuses bcs ON bcs.Id = b.BoxContentStatusId
+                LEFT JOIN BoxQualityStatuses bqs ON bqs.Id = b.BoxQualityStatusId
+
                 LEFT JOIN Locations rl ON rl.Id = b.ReservedLocationId
+                LEFT JOIN Warehouses w ON w.Id = b.CurrentWarehouseId
+                LEFT JOIN Locations l ON l.Id = b.CurrentLocationId
+
                 WHERE b.BoxNumber = @BoxNumber
             `);
 
@@ -1058,6 +1099,8 @@ app.get('/history', async (req, res) => {
                 ToLocationCode,
                 ReferenceType,
                 ReferenceId,
+                DeliveryNumber,
+                DeliveryDestination,
                 DoneAt,
                 Username,
                 Note,
@@ -1227,5 +1270,956 @@ app.get('/boxes/:id/history', async (req, res) => {
         res.json(result.recordset);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+// 🔹 enpoint pro řízení přístupů uživatelů
+app.get('/me', async (req, res) => {
+    try {
+        // DOČASNĚ: simulace uživatele ze SSO
+        // Později sem přijde email z Microsoft Entra ID / AD
+        const currentUserEmail = process.env.TEST_USER_EMAIL;
+
+        if (!currentUserEmail) {
+            return res.status(500).json({
+                error: 'Chybi TEST_USER_EMAIL v .env'
+            });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('Email', sql.NVarChar(150), currentUserEmail)
+            .query(`
+                SELECT 
+                    u.Id,
+                    u.Username,
+                    u.Email,
+                    u.DisplayName,
+                    r.Code AS RoleCode,
+                    p.Code AS PermissionCode
+                FROM Users u
+                JOIN UserRoles ur ON ur.UserId = u.Id
+                JOIN Roles r ON r.Id = ur.RoleId
+                JOIN RolePermissions rp ON rp.RoleId = r.Id
+                JOIN Permissions p ON p.Id = rp.PermissionId
+                WHERE u.Email = @Email
+                  AND u.IsActive = 1
+            `);
+
+        const rows = result.recordset;
+
+        if (rows.length === 0) {
+            return res.status(403).json({
+                error: 'Uzivatel nenalezen nebo nema role/opravneni',
+                email: currentUserEmail
+            });
+        }
+
+        res.json({
+            id: rows[0].Id,
+            username: rows[0].Username,
+            email: rows[0].Email,
+            displayName: rows[0].DisplayName || rows[0].Username,
+            roles: [...new Set(rows.map(r => r.RoleCode))],
+            permissions: [...new Set(rows.map(r => r.PermissionCode))]
+        });
+
+    } catch (err) {
+        console.error('Chyba /me:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// route /auth/callback
+app.get('/auth/callback', (req, res) => {
+    // zatím jen placeholder
+    res.send('SSO callback OK (zatím bez logiky)');
+});
+
+// login endpoint
+app.get('/login', (req, res) => {
+    res.send('Tady bude redirect na Microsoft login');
+});
+
+
+// masterdata endpoint  -čtení
+app.get('/masterdata/partnumbers', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT Id, PartNumber, Description, ProductionDefaultLocationId
+            FROM PartNumbers
+            ORDER BY PartNumber
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /masterdata/partnumbers:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// masterdata endpoint  - vytvoření položky
+app.post('/masterdata/partnumbers', async (req, res) => {
+    try {
+        const { PartNumber, Description, ProductionDefaultLocationId } = req.body;
+
+        if (!PartNumber) {
+            return res.status(400).json({ error: 'PartNumber je povinný.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('PartNumber', sql.NVarChar, PartNumber)
+            .input('Description', sql.NVarChar, Description || null)
+            .input('ProductionDefaultLocationId', sql.Int, ProductionDefaultLocationId || null)
+            .query(`
+                INSERT INTO PartNumbers (PartNumber, Description, ProductionDefaultLocationId)
+                VALUES (@PartNumber, @Description, @ProductionDefaultLocationId)
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba POST /masterdata/partnumbers:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/masterdata/partnumbers/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const { Description, ProductionDefaultLocationId } = req.body;
+
+        if (!id) {
+            return res.status(400).json({ error: 'Neplatné ID položky.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('Id', sql.Int, id)
+            .input('Description', sql.NVarChar, Description || null)
+            .input('ProductionDefaultLocationId', sql.Int, ProductionDefaultLocationId || null)
+            .query(`
+                UPDATE PartNumbers
+                SET Description = @Description,
+                    ProductionDefaultLocationId = @ProductionDefaultLocationId
+                WHERE Id = @Id
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba PUT /masterdata/partnumbers/:id:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// masterdata endpoint  - lokace
+app.get('/masterdata/locations', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT 
+                l.Id,
+                l.Code,
+                l.CapacityBoxes,
+                l.UseForSuggestion,
+                w.Name AS WarehouseName
+            FROM Locations l
+            LEFT JOIN Warehouses w ON w.Id = l.WarehouseId
+            ORDER BY l.Code
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /masterdata/locations:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// masterdata endpoint  - vytvoření lokace
+app.post('/masterdata/locations', async (req, res) => {
+    try {
+        const { Code, CapacityBoxes, WarehouseId } = req.body;
+
+        if (!Code) {
+            return res.status(400).json({ error: 'Kód lokace je povinný.' });
+        }
+
+        if (!WarehouseId) {
+            return res.status(400).json({ error: 'Sklad je povinný.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('Code', sql.NVarChar(50), Code)
+            .input('CapacityBoxes', sql.Int, CapacityBoxes || 4)
+            .input('WarehouseId', sql.Int, WarehouseId)
+            .query(`
+                INSERT INTO Locations (Code, Capacity, CapacityBoxes, WarehouseId)
+                VALUES (@Code, @CapacityBoxes, @CapacityBoxes, @WarehouseId)
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba POST /masterdata/locations:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// masterdata endpoint  - sklady
+app.get('/masterdata/warehouses', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT Id, Name
+            FROM Warehouses
+            ORDER BY Name
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /masterdata/warehouses:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// masterdata endpoint - update lokace
+app.put('/masterdata/locations/:id', async (req, res) => {
+    try {
+        const locationId = parseInt(req.params.id, 10);
+        const { CapacityBoxes, WarehouseId, UseForSuggestion } = req.body;
+
+        if (!locationId) {
+            return res.status(400).json({ error: 'Neplatné ID lokace.' });
+        }
+
+        if (!CapacityBoxes || CapacityBoxes < 1) {
+            return res.status(400).json({ error: 'Kapacita musí být větší než 0.' });
+        }
+
+        if (!WarehouseId) {
+            return res.status(400).json({ error: 'Sklad je povinný.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        const occupancyResult = await pool.request()
+            .input('LocationId', sql.Int, locationId)
+            .query(`
+                SELECT COUNT(*) AS OccupiedBoxes
+                FROM Boxes
+                WHERE IsActive = 1
+                  AND (
+                      CurrentLocationId = @LocationId
+                      OR ReservedLocationId = @LocationId
+                  )
+            `);
+
+        const occupiedBoxes = occupancyResult.recordset[0].OccupiedBoxes;
+
+        if (CapacityBoxes < occupiedBoxes) {
+            return res.status(400).json({
+                error: `Kapacitu nelze snížit na ${CapacityBoxes}. Na lokaci je/je rezervováno ${occupiedBoxes} beden.`
+            });
+        }
+
+        await pool.request()
+            .input('LocationId', sql.Int, locationId)
+            .input('CapacityBoxes', sql.Int, CapacityBoxes)
+            .input('WarehouseId', sql.Int, WarehouseId)
+            .input('UseForSuggestion', sql.Bit, UseForSuggestion ? 1 : 0)
+            .query(`
+                UPDATE Locations
+                SET CapacityBoxes = @CapacityBoxes,
+                    Capacity = @CapacityBoxes,
+                    WarehouseId = @WarehouseId,
+                    UseForSuggestion = @UseForSuggestion
+                WHERE Id = @LocationId
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba PUT /masterdata/locations/:id:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// masterdata endpoint - oba endpointy destinací
+app.get('/masterdata/destinations', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT Id, Code, Name
+            FROM DeliveryDestinations
+            ORDER BY Id
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /masterdata/destinations:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/masterdata/destinations', async (req, res) => {
+    try {
+        const { Code, Name } = req.body;
+
+        if (!Code || !Name) {
+            return res.status(400).json({ error: 'Code a Name jsou povinné.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('Code', sql.NVarChar(50), Code)
+            .input('Name', sql.NVarChar(100), Name)
+            .query(`
+                INSERT INTO DeliveryDestinations (Code, Name)
+                VALUES (@Code, @Name)
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba POST /masterdata/destinations:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// endpointy pro mastaerdata - kvalitativní stavy
+app.get('/masterdata/quality-statuses', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT Id, Code, Name
+            FROM BoxQualityStatuses
+            ORDER BY Id
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/masterdata/quality-statuses', async (req, res) => {
+    try {
+        const { Code, Name } = req.body;
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('Code', sql.NVarChar(50), Code)
+            .input('Name', sql.NVarChar(100), Name)
+            .query(`
+                INSERT INTO BoxQualityStatuses (Code, Name)
+                VALUES (@Code, @Name)
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// endpointy pro mastaerdata - obsahove stavy
+app.get('/masterdata/content-statuses', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT Id, Name
+            FROM BoxContentStatuses
+            ORDER BY Id
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/masterdata/content-statuses', async (req, res) => {
+    try {
+        const { Name } = req.body;
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('Name', sql.NVarChar(100), Name)
+            .query(`
+                INSERT INTO BoxContentStatuses (Name)
+                VALUES (@Name)
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint - export do csv z hlavniho prehledu
+app.get('/boxes/export', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT
+                BoxNumber AS Bedna,
+                PartNumber AS PN,
+                Batch AS Sarze,
+                Cavity AS Otisk,
+                OrderNumber AS Zakazka,
+                Quantity AS Ks,
+                BoxContentStatus AS ObsahovyStav,
+                BoxLogisticStatus AS LogistickyStav,
+                BoxQualityStatus AS KvalitativniStav,
+                RedCardNumber AS CisloCK,
+                WarehouseName AS Sklad,
+                LocationCode AS Lokace
+            FROM vw_BoxStockOverview
+            ORDER BY BoxNumber
+        `);
+
+        const rows = result.recordset;
+
+        if (rows.length === 0) {
+            return res.status(404).send('Žádná data k exportu.');
+        }
+
+        const headers = Object.keys(rows[0]);
+
+        const csv = [
+            headers.join(';'),
+            ...rows.map(row =>
+                headers.map(header => {
+                    const value = row[header] ?? '';
+                    return `"${String(value).replace(/"/g, '""')}"`;
+                }).join(';')
+            )
+        ].join('\n');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="prehled_beden.csv"');
+
+        res.send('\uFEFF' + csv);
+
+    } catch (err) {
+        console.error('Chyba /boxes/export:', err);
+        res.status(500).send(err.message);
+    }
+});
+
+
+// endpointy  - masterdata - místa dodání
+app.get('/masterdata/delivery-places', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT
+                dp.Id,
+                dp.DeliveryDestinationId,
+                dd.Name AS DestinationName,
+                dp.Name,
+                dp.CompanyName,
+                dp.Street,
+                dp.City,
+                dp.ZipCode,
+                dp.Country,
+                dp.DefaultLanguage,
+                dp.IsActive
+            FROM DeliveryPlaces dp
+            JOIN DeliveryDestinations dd ON dd.Id = dp.DeliveryDestinationId
+            ORDER BY dd.Name, dp.Name
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /masterdata/delivery-places:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/masterdata/delivery-places', async (req, res) => {
+    try {
+        const {
+            DeliveryDestinationId,
+            Name,
+            CompanyName,
+            Street,
+            City,
+            ZipCode,
+            Country,
+            DefaultLanguage
+        } = req.body;
+
+        if (!DeliveryDestinationId || !Name) {
+            return res.status(400).json({ error: 'Destinace a název místa jsou povinné.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        await pool.request()
+            .input('DeliveryDestinationId', sql.Int, DeliveryDestinationId)
+            .input('Name', sql.NVarChar(100), Name)
+            .input('CompanyName', sql.NVarChar(150), CompanyName || null)
+            .input('Street', sql.NVarChar(150), Street || null)
+            .input('City', sql.NVarChar(100), City || null)
+            .input('ZipCode', sql.NVarChar(20), ZipCode || null)
+            .input('Country', sql.NVarChar(100), Country || null)
+            .input('DefaultLanguage', sql.NVarChar(2), DefaultLanguage || 'CZ')
+            .query(`
+                INSERT INTO DeliveryPlaces (
+                    DeliveryDestinationId,
+                    Name,
+                    CompanyName,
+                    Street,
+                    City,
+                    ZipCode,
+                    Country,
+                    DefaultLanguage
+                )
+                VALUES (
+                    @DeliveryDestinationId,
+                    @Name,
+                    @CompanyName,
+                    @Street,
+                    @City,
+                    @ZipCode,
+                    @Country,
+                    @DefaultLanguage
+                )
+            `);
+
+        res.json({ success: true });
+
+    } catch (err) {
+        console.error('Chyba POST /masterdata/delivery-places:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint pro masterdata - výrobní lokace u položek
+app.get('/masterdata/production-locations', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT
+                Id,
+                LocationCode,
+                WarehouseName
+            FROM vw_ProductionLocations
+            ORDER BY WarehouseName, LocationCode
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// zložení bedny ve výrobě
+app.post('/production/box', async (req, res) => {
+    try {
+        const {
+            PartNumberId,
+            Batch,
+            Cavity,
+            OrderNumber,
+            CastingDate,
+            Quantity,
+            BoxContentStatusId,
+            BoxQualityStatusId,
+            RedCardNumber,
+            CreatedByUserId
+        } = req.body;
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('PartNumberId', sql.Int, PartNumberId)
+            .input('Batch', sql.NVarChar(5), Batch)
+            .input('Cavity', sql.TinyInt, Cavity)
+            .input('OrderNumber', sql.NVarChar(50), OrderNumber)
+            .input('CastingDate', sql.Date, CastingDate)
+            .input('Quantity', sql.Int, Quantity)
+            .input('BoxContentStatusId', sql.Int, BoxContentStatusId)
+            .input('BoxQualityStatusId', sql.Int, BoxQualityStatusId)
+            .input('RedCardNumber', sql.NVarChar(50), RedCardNumber || null)
+            .input('CreatedByUserId', sql.Int, CreatedByUserId || 1)
+            .execute('CreateProductionBox');
+
+        res.json({
+            success: true,
+            data: result.recordset[0]
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint pro data dodacího listu
+app.get('/delivery/:id/print-data', async (req, res) => {
+    try {
+        const deliveryId = parseInt(req.params.id, 10);
+        const pool = await sql.connect(dbConfig);
+
+        const headerResult = await pool.request()
+            .input('DeliveryId', sql.Int, deliveryId)
+            .query(`
+                SELECT 
+                    d.Id,
+                    d.DeliveryNumber,
+                    d.CreatedAt,
+                    d.DocumentLanguage,
+                    dd.Name AS DestinationName,
+                    dp.Name AS PlaceName,
+                    dp.CompanyName,
+                    dp.Street,
+                    dp.City,
+                    dp.ZipCode,
+                    dp.Country
+                FROM Deliveries d
+                LEFT JOIN DeliveryDestinations dd ON dd.Id = d.DeliveryDestinationId
+                LEFT JOIN DeliveryPlaces dp ON dp.Id = d.DeliveryPlaceId
+                WHERE d.Id = @DeliveryId
+            `);
+
+        const boxesResult = await pool.request()
+            .input('DeliveryId', sql.Int, deliveryId)
+            .query(`
+                SELECT
+                    b.BoxNumber,
+                    pn.PartNumber,
+                    b.Batch,
+                    b.Cavity,
+                    b.OrderNumber,
+                    b.Quantity
+                FROM DeliveryBoxes db
+                JOIN Boxes b ON b.Id = db.BoxId
+                JOIN PartNumbers pn ON pn.Id = b.PartNumberId
+                WHERE db.DeliveryId = @DeliveryId
+                ORDER BY b.BoxNumber
+            `);
+
+        if (headerResult.recordset.length === 0) {
+            return res.status(404).json({ error: 'Dodávka nenalezena.' });
+        }
+
+        res.json({
+            header: headerResult.recordset[0],
+            boxes: boxesResult.recordset
+        });
+
+    } catch (err) {
+        console.error('Chyba /delivery/:id/print-data:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// endpoint pro tisk stitku na bedny
+app.get('/box/:id/label-data', async (req, res) => {
+    try {
+        const boxId = parseInt(req.params.id, 10);
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('BoxId', sql.Int, boxId)
+            .query(`
+                SELECT
+                    b.Id,
+                    b.BoxNumber,
+                    pn.PartNumber,
+                    b.Batch,
+                    b.Cavity,
+                    b.OrderNumber,
+                    b.Quantity,
+                    b.CastingDate,
+                    bqs.Name AS QualityStatus,
+                    b.RedCardNumber,
+                    l.Code AS ReservedLocationCode
+                FROM Boxes b
+                JOIN PartNumbers pn ON pn.Id = b.PartNumberId
+                LEFT JOIN BoxQualityStatuses bqs ON bqs.Id = b.BoxQualityStatusId
+                LEFT JOIN Locations l ON l.Id = b.ReservedLocationId
+                WHERE b.Id = @BoxId
+            `);
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ error: 'Bedna nenalezena.' });
+        }
+
+        res.json(result.recordset[0]);
+
+    } catch (err) {
+        console.error('Chyba /box/:id/label-data:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint pro preheld dodavek
+app.get('/delivery-overview', async (req, res) => {
+    try {
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request().query(`
+            SELECT
+                d.Id,
+                d.DeliveryNumber,
+                dd.Name AS Destination,
+                dp.Name AS DeliveryPlace,
+                d.DocumentLanguage,
+                d.Status,
+                d.CreatedAt,
+                COUNT(db.BoxId) AS BoxCount
+            FROM Deliveries d
+            JOIN DeliveryDestinations dd ON dd.Id = d.DeliveryDestinationId
+            LEFT JOIN DeliveryPlaces dp ON dp.Id = d.DeliveryPlaceId
+            LEFT JOIN DeliveryBoxes db ON db.DeliveryId = d.Id
+            WHERE d.Status = 'NA_CESTE'
+            GROUP BY
+                d.Id,
+                d.DeliveryNumber,
+                dd.Name,
+                dp.Name,
+                d.DocumentLanguage,
+                d.Status,
+                d.CreatedAt
+            ORDER BY d.Id DESC
+        `);
+
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Chyba /delivery-overview:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint detailu dodávky
+app.get('/delivery/:id/detail', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+
+        const pool = await sql.connect(dbConfig);
+
+        const deliveryResult = await pool.request()
+            .input('Id', sql.Int, id)
+            .query(`
+                SELECT
+                    d.Id,
+                    d.DeliveryNumber,
+                    d.Status,
+                    d.DocumentLanguage,
+                    d.CreatedAt,
+                    dd.Name AS Destination,
+                    dp.Name AS DeliveryPlace
+                FROM Deliveries d
+                JOIN DeliveryDestinations dd ON dd.Id = d.DeliveryDestinationId
+                LEFT JOIN DeliveryPlaces dp ON dp.Id = d.DeliveryPlaceId
+                WHERE d.Id = @Id
+            `);
+
+        if (deliveryResult.recordset.length === 0) {
+            return res.status(404).json({ error: 'Dodávka nenalezena.' });
+        }
+
+        const boxesResult = await pool.request()
+            .input('Id', sql.Int, id)
+            .query(`
+                SELECT
+                    b.Id,
+                    b.BoxNumber,
+                    pn.PartNumber,
+                    b.Batch,
+                    b.Quantity,
+                    b.OrderNumber,
+                    b.Cavity
+                FROM DeliveryBoxes db
+                JOIN Boxes b ON b.Id = db.BoxId
+                JOIN PartNumbers pn ON pn.Id = b.PartNumberId
+                WHERE db.DeliveryId = @Id
+                ORDER BY b.BoxNumber
+            `);
+
+        res.json({
+            delivery: deliveryResult.recordset[0],
+            boxes: boxesResult.recordset
+        });
+
+    } catch (err) {
+        console.error('Chyba /delivery/:id/detail:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// endpoint pro dokonceni prijmu ve vyrobe
+app.post('/production/receipt/complete', async (req, res) => {
+    try {
+        const {
+            BoxIds,
+            TargetLocationId,
+            DeliveryId,
+            UserId
+        } = req.body;
+
+        if (!Array.isArray(BoxIds) || BoxIds.length === 0) {
+            return res.status(400).json({ error: 'Chybí bedny k příjmu.' });
+        }
+
+        if (!TargetLocationId) {
+            return res.status(400).json({ error: 'Chybí cílová výrobní lokace.' });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('BoxIds', sql.NVarChar(sql.MAX), BoxIds.join(','))
+            .input('TargetLocationId', sql.Int, TargetLocationId)
+            .input('DeliveryId', sql.Int, DeliveryId || null)
+            .input('UserId', sql.Int, UserId || 1)
+            .execute('ReceiveBoxesToProduction');
+
+        res.json({
+            success: true,
+            data: result.recordset[0]
+        });
+
+    } catch (err) {
+        console.error('Chyba /production/receipt/complete:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+// endpoint na změnu výrobní bedny
+app.post('/api/production/update-box', async (req, res) => {
+    try {
+        const {
+            boxId,
+            quantity,
+            boxContentStatusId,
+            targetLocationId,
+            userId
+        } = req.body;
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('BoxId', sql.Int, boxId)
+            .input('Quantity', sql.Int, quantity)
+            .input('BoxContentStatusId', sql.Int, boxContentStatusId)
+            .input('TargetLocationId', sql.Int, targetLocationId || null)
+            .input('UserId', sql.Int, userId)
+            .execute('UpdateProductionBox');
+
+        res.json({
+            success: true,
+            data: result.recordset[0]
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+});
+
+
+// endpoint - spotřeba bedny ve výrobě
+app.post('/api/production/consume-boxes', async (req, res) => {
+    try {
+        const {
+            boxIds,
+            userId
+        } = req.body;
+
+        if (!Array.isArray(boxIds) || boxIds.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nejsou vybrané žádné bedny.'
+            });
+        }
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('BoxIds', sql.NVarChar(sql.MAX), boxIds.join(','))
+            .input('UserId', sql.Int, userId)
+            .execute('ConsumeProductionBoxes');
+
+        res.json({
+            success: true,
+            consumed: result.recordset?.[0]?.ConsumedBoxes || 0
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+});
+
+// endpoint pro zmenu kvalitativniho stavu bedny
+app.post('/api/quality/update-box', async (req, res) => {
+    try {
+        const {
+            boxId,
+            boxQualityStatusId,
+            redCardNumber,
+            userId
+        } = req.body;
+
+        const pool = await sql.connect(dbConfig);
+
+        const result = await pool.request()
+            .input('BoxId', sql.Int, boxId)
+            .input('BoxQualityStatusId', sql.Int, boxQualityStatusId)
+            .input('RedCardNumber', sql.NVarChar(500), redCardNumber || null)
+            .input('UserId', sql.Int, userId || 1)
+            .execute('UpdateBoxQuality');
+
+        res.json({
+            success: true,
+            data: result.recordset[0]
+        });
+
+    } catch (err) {
+        console.error('Chyba /api/quality/update-box:', err);
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
     }
 });

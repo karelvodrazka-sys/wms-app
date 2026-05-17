@@ -7,17 +7,30 @@
 </head>
 <body>
 <header class="topbar">
-    <h1>WMS Vulkán</h1>
-    <nav>
-        <a href="/">Přehled beden</a>
-        <a href="/receipt.html">Příjem</a>
-        <a href="/putaway.html">Zaskladnění</a>
-        <a href="/transfer.html">Přeskladnění</a>
-        <a href="/history.html">Historie</a>
-    </nav>
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html" class="active-main-nav">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html">Číselníky</a>
+        </nav>
+    </div>
 </header>
 
 <main class="container">
+
+    <div class="tab-row">
+    <button class="tab-btn" onclick="window.location.href='/receipt.html'">Příjem</button>
+    <button class="tab-btn" onclick="window.location.href='/putaway.html'">Zaskladnění</button>
+    <button class="tab-btn active" onclick="window.location.href='/transfer.html'">Přeskladnění</button>
+    <button class="tab-btn" onclick="window.location.href='/delivery.html'">Výdej</button>
+    </div>
+
     <section class="panel">
         <div class="toolbar-row">
             <button class="btn btn-primary" onclick="loadPendingTransfers()">Obnovit</button>

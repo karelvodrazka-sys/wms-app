@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8" />
+    <title>Číselníky</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-left">
+        <h1>WMS Vulkán</h1>
+        <nav class="main-nav">
+            <a href="/index.html">Přehled beden</a>
+            <a href="/receipt.html">Sklad</a>
+            <a href="/production-box.html">Výroba</a>
+            <a href="/quality.html">Kvalita</a>
+            <a href="/delivery-overview.html">Dodávky</a>
+            <a href="/history.html">Historie</a>
+            <a href="/masterdata.html" class="active-main-nav">
+                Číselníky
+            </a>
+        </nav>
+
+    </div>
+</header>
+
+<main class="container">
+        <div class="tab-row">
+            <button class="tab-btn active" onclick="showMasterTab('parts', this)">Položky</button>
+            <button class="tab-btn" onclick="showMasterTab('locations', this)">Lokace</button>
+            <button class="tab-btn" onclick="showMasterTab('destinations', this)">Destinace</button>
+            <button class="tab-btn" onclick="showMasterTab('quality', this)">Kvalitativní stavy</button>
+            <button class="tab-btn" onclick="showMasterTab('content', this)">Obsahové stavy</button>
+            <button class="tab-btn" onclick="showMasterTab('delivery-places', this)">Místa dodání</button>
+        </div>
+    <section id="tab-parts" class="card master-tab">
+        <div class="card-header">
+            <h2>Číselník položek</h2>
+            <span id="partNumberCount">Načítám...</span>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px;">
+            <input id="partNumberSearch" placeholder="Hledat PN / popis..." />
+            <button class="btn btn-primary" onclick="loadPartNumbers()">Obnovit</button>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px; gap: 8px;">
+            <input id="newPartNumber" placeholder="PN (např. PN-2001)" />
+            <input id="newPartDescription" placeholder="Popis" />
+            <button class="btn btn-primary" onclick="createPartNumber()">Přidat</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>PN</th>
+                        <th>Popis</th>
+                        <th>Výrobní lokace</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody id="partNumberBody">
+                    <tr>
+                        <td colspan="5">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tab-locations" class="card master-tab hidden">
+    <div class="card-header">
+        <h2>Číselník lokací</h2>
+        <span id="locationCount">Načítám...</span>
+    </div>
+
+    <div class="toolbar-row" style="padding: 16px; gap: 8px;">
+        <input id="newLocationCode" placeholder="Lokace (např. V-04-01)" />
+        <input id="newLocationCapacity" type="number" placeholder="Kapacita beden" value="4" />
+        <select id="newLocationWarehouse">
+            <option value="">Načítám sklady...</option>
+        </select>
+        <button class="btn btn-primary" onclick="createLocation()">Přidat lokaci</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Lokace</th>
+                    <th>Kapacita beden</th>
+                    <th>Sklad</th>
+                    <th>Navrhovat</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody id="locationBody">
+                <tr>
+                    <td colspan="6">Načítám data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    </section>
+
+    <section id="tab-destinations" class="card master-tab hidden">
+        <div class="card-header">
+            <h2>Číselník destinací</h2>
+            <span id="destinationCount">Načítám...</span>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px; gap: 8px;">
+            <input id="newDestinationCode" placeholder="Kód (např. DO_VYROBY)" />
+            <input id="newDestinationName" placeholder="Název (např. Do výroby)" />
+            <button class="btn btn-primary" onclick="createDestination()">Přidat destinaci</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Kód</th>
+                        <th>Název</th>
+                    </tr>
+                </thead>
+                <tbody id="destinationBody">
+                    <tr>
+                        <td colspan="3">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tab-delivery-places" class="card master-tab hidden">
+        <div class="card-header">
+            <h2>Číselník míst dodání</h2>
+            <span id="deliveryPlaceCount">Načítám...</span>
+        </div>
+
+        <div class="toolbar-row" style="padding: 16px; gap: 8px;">
+            <select id="newPlaceDestination"></select>
+            <input id="newPlaceName" placeholder="Název místa" />
+            <input id="newPlaceCompany" placeholder="Firma / příjemce" />
+            <input id="newPlaceStreet" placeholder="Ulice" />
+            <input id="newPlaceCity" placeholder="Město" />
+            <input id="newPlaceZip" placeholder="PSČ" />
+            <input id="newPlaceCountry" placeholder="Země" />
+            <select id="newPlaceLanguage">
+                <option value="CZ">CZ</option>
+                <option value="EN">EN</option>
+            </select>
+            <button class="btn btn-primary" onclick="createDeliveryPlace()">Přidat místo</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Destinace</th>
+                        <th>Název</th>
+                        <th>Firma</th>
+                        <th>Ulice</th>
+                        <th>Město</th>
+                        <th>PSČ</th>
+                        <th>Země</th>
+                        <th>Jazyk</th>
+                        <th>Akce</th>
+                    </tr>
+                </thead>
+                <tbody id="deliveryPlaceBody">
+                    <tr>
+                        <td colspan="10">Načítám data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tab-quality" class="card master-tab hidden">
+        <div class="card-header">
+            <h2>Kvalitativní stavy</h2>
+            <span id="qualityCount">Načítám...</span>
+        </div>
+
+        <div class="toolbar-row" style="padding:16px;">
+            <input id="newQualityCode" placeholder="Kód (např. CK)" />
+            <input id="newQualityName" placeholder="Název (např. Červená karta)" />
+            <button class="btn btn-primary" onclick="createQuality()">Přidat</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Kód</th>
+                        <th>Název</th>
+                    </tr>
+                </thead>
+                <tbody id="qualityBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+
+    <section id="tab-content" class="card master-tab hidden">
+    <div class="card-header">
+        <h2>Obsahové stavy</h2>
+        <span id="contentCount">Načítám...</span>
+    </div>
+
+    <div class="toolbar-row" style="padding:16px;">
+        <input id="newContentName" placeholder="Název (např. WIP apretace)" />
+        <button class="btn btn-primary" onclick="createContent()">Přidat</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Název</th>
+                </tr>
+            </thead>
+            <tbody id="contentBody"></tbody>
+        </table>
+    </div>
+    </section>
+</main>
+
+<script src="masterdata.js"></script>
+</body>
+</html>
+
