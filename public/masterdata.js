@@ -52,7 +52,7 @@ function renderPartNumbers(data) {
     if (!data || data.length === 0) {
         partNumberBody.innerHTML = `
             <tr>
-                <td colspan="5">Žádné položky k zobrazení.</td>
+                <td colspan="11">Žádné položky k zobrazení.</td>
             </tr>
         `;
         partNumberCount.textContent = '0 záznamů';
@@ -61,20 +61,49 @@ function renderPartNumbers(data) {
 
     partNumberBody.innerHTML = data.map(item => `
         <tr>
-            <td>${item.Id ?? ''}</td>
-            <td>${item.PartNumber ?? ''}</td>
+            <td class="col-id">${item.Id ?? ''}</td>
+            <td class="col-pn">${item.PartNumber ?? ''}</td>
+
+            <td><input id="pnDesc_${item.Id}" value="${item.Description ?? ''}" /></td>
+
             <td>
-                <input id="pnDesc_${item.Id}" value="${item.Description ?? ''}" />
+                <select id="pnStatus_${item.Id}">
+                    <option value="">-- status --</option>
+                    <option value="Finální výrobek" ${item.ItemStatus === 'Finální výrobek' ? 'selected' : ''}>Finální výrobek</option>
+                    <option value="Odlitek" ${item.ItemStatus === 'Odlitek' ? 'selected' : ''}>Odlitek</option>
+                </select>
             </td>
+
+            <td><input id="pnCasting_${item.Id}" value="${item.CastingPartNumber ?? ''}" /></td>
+            <td class="col-small"><input id="pnPieces_${item.Id}" type="number" value="${item.PiecesPerBox ?? ''}" /></td>
+
+            <td class="col-abc">
+                <select id="pnAbc_${item.Id}">
+                    <option value="">--</option>
+                    <option value="A" ${item.AbcClass === 'A' ? 'selected' : ''}>A</option>
+                    <option value="B" ${item.AbcClass === 'B' ? 'selected' : ''}>B</option>
+                    <option value="C" ${item.AbcClass === 'C' ? 'selected' : ''}>C</option>
+                </select>
+            </td>
+
+            <td class="col-small"><input id="pnMaxCavity_${item.Id}" type="number" value="${item.MaxCavityCount ?? ''}" /></td>
+
+            <td>
+                <select id="pnImpregnation_${item.Id}">
+                    <option value="">--</option>
+                    <option value="KID" ${item.ImpregnationSupplier === 'KID' ? 'selected' : ''}>KID</option>
+                    <option value="Maldaner" ${item.ImpregnationSupplier === 'Maldaner' ? 'selected' : ''}>Maldaner</option>
+                </select>
+            </td>
+
             <td>
                 <select id="pnProdLoc_${item.Id}">
                     ${renderProductionLocationOptions(item.ProductionDefaultLocationId)}
                 </select>
             </td>
+
             <td>
-                <button class="btn btn-primary" onclick="updatePartNumber(${item.Id})">
-                    Uložit
-                </button>
+                <button class="btn btn-primary" onclick="updatePartNumber(${item.Id})">Uložit</button>
             </td>
         </tr>
     `).join('');
@@ -132,6 +161,7 @@ partNumberSearch.addEventListener('input', applyPartNumberFilter);
 async function createPartNumber() {
     const pn = document.getElementById('newPartNumber').value.trim();
     const desc = document.getElementById('newPartDescription').value.trim();
+    const productionDefaultLocationId = document.getElementById('newProductionLocation').value || null;
 
     if (!pn) {
         alert('Zadej PN.');
@@ -144,7 +174,14 @@ async function createPartNumber() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 PartNumber: pn,
-                Description: desc
+                Description: desc,
+                ItemStatus: document.getElementById('newItemStatus').value || null,
+                CastingPartNumber: document.getElementById('newCastingPartNumber').value.trim() || null,
+                PiecesPerBox: parseInt(document.getElementById('newPiecesPerBox').value, 10) || null,
+                AbcClass: document.getElementById('newAbcClass').value || null,
+                MaxCavityCount: parseInt(document.getElementById('newMaxCavityCount').value, 10) || null,
+                ImpregnationSupplier: document.getElementById('newImpregnationSupplier').value || null,
+                ProductionDefaultLocationId: productionDefaultLocationId
             })
         });
 
@@ -175,7 +212,13 @@ async function updatePartNumber(id) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 Description: description,
-                ProductionDefaultLocationId: productionDefaultLocationId
+                ProductionDefaultLocationId: productionDefaultLocationId,
+                ItemStatus: document.getElementById(`pnStatus_${id}`).value || null,
+                CastingPartNumber: document.getElementById(`pnCasting_${id}`).value.trim() || null,
+                PiecesPerBox: parseInt(document.getElementById(`pnPieces_${id}`).value, 10) || null,
+                AbcClass: document.getElementById(`pnAbc_${id}`).value || null,
+                MaxCavityCount: parseInt(document.getElementById(`pnMaxCavity_${id}`).value, 10) || null,
+                ImpregnationSupplier: document.getElementById(`pnImpregnation_${id}`).value || null
             })
         });
 
@@ -216,6 +259,17 @@ function renderLocations(data) {
                     min="1"
                     style="width: 90px;"
                 />
+            </td>
+            <td>
+                <select id="locTurnover_${l.Id}">
+                    <option value="">-- neurčeno --</option>
+                    <option value="FAST" ${l.TurnoverType === 'FAST' ? 'selected' : ''}>
+                        Rychloobrátková
+                    </option>
+                    <option value="SLOW" ${l.TurnoverType === 'SLOW' ? 'selected' : ''}>
+                        Máloobrátková
+                    </option>
+                </select>
             </td>
             <td>
                 <select id="locWarehouse_${l.Id}">
@@ -345,6 +399,7 @@ async function updateLocation(locationId) {
     const capacity = parseInt(document.getElementById(`locCapacity_${locationId}`).value, 10);
     const warehouseId = parseInt(document.getElementById(`locWarehouse_${locationId}`).value, 10);
     const useForSuggestion = document.getElementById(`locUseForSuggestion_${locationId}`).checked;
+    const turnoverType = document.getElementById(`locTurnover_${locationId}`).value || null;
 
     if (!capacity || capacity < 1) {
         alert('Kapacita musí být větší než 0.');
@@ -363,7 +418,8 @@ async function updateLocation(locationId) {
             body: JSON.stringify({
                 CapacityBoxes: capacity,
                 WarehouseId: warehouseId,
-                UseForSuggestion: useForSuggestion
+                UseForSuggestion: useForSuggestion,
+                TurnoverType: turnoverType
             })
         });
 
@@ -680,6 +736,18 @@ async function updateDeliveryPlace(id) {
 async function loadProductionLocations() {
     const res = await fetch('/masterdata/production-locations');
     productionLocations = await res.json();
+
+    const newProductionLocation = document.getElementById('newProductionLocation');
+
+    if (newProductionLocation) {
+        newProductionLocation.innerHTML = `
+            <option value="">-- výrobní lokace --</option>
+        ` + productionLocations.map(l => `
+            <option value="${l.Id}">
+                ${l.WarehouseName} / ${l.LocationCode}
+            </option>
+        `).join('');
+    }
 }
 
 function renderProductionLocationOptions(selectedId) {

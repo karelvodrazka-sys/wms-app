@@ -200,7 +200,7 @@ function renderQualityOverview(data) {
     if (!data || data.length === 0) {
         body.innerHTML = `
             <tr>
-                <td colspan="12">Žádná data k zobrazení.</td>
+                <td colspan="14">Žádná data k zobrazení.</td>
             </tr>
         `;
         count.textContent = '0 záznamů';
@@ -241,10 +241,19 @@ function renderQualityOverview(data) {
             <td>${box.WarehouseName ?? ''}</td>
             <td>${box.LocationCode ?? ''}</td>
 
+            <td class="pending-column">
+                ${box.PendingQualityStatusId ? 'ANO' : ''}
+            </td>
+
+            <td class="pending-target-column">
+                ${box.PendingQualityStatus ?? ''}
+            </td>
+
             <td>
                 <button class="btn btn-primary" onclick="saveQualityRow(${box.Id})">
                     Uložit
                 </button>
+            </td>
             </td>
         </tr>
     `).join('');
@@ -286,22 +295,25 @@ async function saveQualityRow(boxId) {
     }
 
     try {
-        const res = await fetch('/api/quality/update-box', {
+        const res = await fetch('/boxes/change-quality-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                boxId,
-                boxQualityStatusId,
-                redCardNumber,
-                userId: 1
+                BoxIds: [boxId],
+                NewQualityStatusId: boxQualityStatusId,
+                UserId: 1,
+                RedCardNumber: redCardNumber,
+                Note: 'Řádkový požadavek na změnu kvality z přehledu kvality'
             })
         });
 
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-            throw new Error(data.error || 'Nepodařilo se uložit změnu.');
+            throw new Error(data.error || 'Nepodařilo se založit požadavek.');
         }
+
+        alert('Požadavek na změnu kvality byl založen.');
 
         await loadQualityOverview();
 
@@ -369,7 +381,7 @@ async function loadQualityOverview() {
     try {
         body.innerHTML = `
             <tr>
-                <td colspan="11">Načítám data...</td>
+                <td colspan="14">Načítám data...</td>
             </tr>
         `;
         count.textContent = 'Načítám...';
@@ -387,7 +399,7 @@ async function loadQualityOverview() {
     } catch (err) {
         body.innerHTML = `
             <tr>
-                <td colspan="11">Chyba: ${err.message}</td>
+                <td colspan="14">Chyba: ${err.message}</td>
             </tr>
         `;
         count.textContent = 'Chyba';

@@ -50,9 +50,7 @@ async function loadCurrentUser() {
 
 function applyPermissions() {
     const rules = [
-        { id: 'issueBtn', permission: 'DELIVERY_CREATE' },
         { id: 'transferBtn', permission: 'TRANSFER_START' },
-        { id: 'destination', permission: 'DELIVERY_CREATE' },
 
     ];
 
@@ -203,101 +201,145 @@ function toggleAll(source) {
     });
 }
 
-async function issueSelected() {
-    const selected = Array.from(document.querySelectorAll('.box-checkbox:checked'))
+function getCurrentlyDisplayedBoxes() {
+    let filtered = allBoxes;
+
+    if (currentFilter !== 'ALL') {
+        filtered = filtered.filter(box => {
+            switch (currentFilter) {
+                case 'WAITING':
+                    return box.BoxLogisticStatus === 'Čeká na zaskladnění';
+                case 'STOCK':
+                    return box.BoxLogisticStatus === 'Zásoba';
+                case 'TRANSFER':
+                    return box.BoxLogisticStatus?.includes('Přesun');
+                case 'CK':
+                    return box.BoxQualityStatus === 'Červená karta';
+                default:
+                    return true;
+            }
+        });
+    }
+
+    return applyColumnFilters(filtered);
+}
+
+function printPickingList() {
+    const displayedBoxes = getCurrentlyDisplayedBoxes();
+
+    const selectedIds = Array.from(document.querySelectorAll('.box-checkbox:checked'))
         .map(cb => parseInt(cb.value, 10));
 
-    const destinationId = parseInt(document.getElementById('destination').value, 10);
+    const boxes = selectedIds.length > 0
+        ? displayedBoxes.filter(box => selectedIds.includes(box.Id))
+        : displayedBoxes;
 
-    const deliveryPlaceId = parseInt(document.getElementById('deliveryPlace').value, 10);
-    const documentLanguage = document.getElementById('documentLanguage').value;
-
-    if (selected.length === 0) {
-        alert('Nevybral jsi žádné bedny.');
+    if (!boxes || boxes.length === 0) {
+        alert('Není co tisknout.');
         return;
     }
 
-    if (!destinationId) {
-        alert('Vyber destinaci.');
-        return;
-    }
+    const rows = boxes.map(box => `
+        <tr>
+            <td>${box.BoxNumber ?? ''}</td>
+            <td>${box.PartNumber ?? ''}</td>
+            <td>${box.Batch ?? ''}</td>
+            <td>${box.Cavity ?? ''}</td>
+            <td>${box.OrderNumber ?? ''}</td>
+            <td>${box.Quantity ?? ''}</td>
+            <td>${box.BoxQualityStatus ?? ''}</td>
+            <td>${box.RedCardNumber ?? ''}</td>
+            <td>${box.WarehouseName ?? ''}</td>
+            <td>${box.LocationCode ?? ''}</td>
+        </tr>
+    `).join('');
 
-    if (!deliveryPlaceId) {
-        alert('Vyber místo dodání.');
-        return;
-    }
+    const printWindow = window.open('', '_blank');
 
-    try {
-        // 1. založení dodávky
-        const deliveryResponse = await fetch('/delivery', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                DeliveryDestinationId: destinationId,
-                DeliveryPlaceId: deliveryPlaceId,
-                DocumentLanguage: documentLanguage,
-                CreatedByUserId: 1
-            })
-        });
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="cs">
+        <head>
+            <meta charset="UTF-8">
+            <title>Vychystávací seznam</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    color: #111827;
+                    margin: 24px;
+                }
 
-        const deliveryData = await deliveryResponse.json();
+                h1 {
+                    font-size: 24px;
+                    margin-bottom: 4px;
+                }
 
-        if (!deliveryResponse.ok || !deliveryData.success) {
-            throw new Error(deliveryData.error || 'Nepodařilo se založit dodávku.');
-        }
+                .meta {
+                    font-size: 13px;
+                    color: #4b5563;
+                    margin-bottom: 18px;
+                }
 
-        const deliveryId = deliveryData.data.DeliveryId;
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 12px;
+                }
 
-        // 2. přidání beden do dodávky
-        for (const boxId of selected) {
-            const addResponse = await fetch('/delivery/add-box', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    DeliveryId: deliveryId,
-                    BoxId: boxId,
-                    UserId: 1
-                })
-            });
+                th, td {
+                    border: 1px solid #d1d5db;
+                    padding: 6px 8px;
+                    text-align: left;
+                }
 
-            const addData = await addResponse.json();
+                th {
+                    background: #f3f4f6;
+                }
 
-            if (!addResponse.ok || !addData.success) {
-                throw new Error(addData.error || `Nepodařilo se přidat bednu ${boxId} do dodávky.`);
-            }
-        }
+                @media print {
+                    body {
+                        margin: 10mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Vychystávací seznam</h1>
+            <div class="meta">
+                Vygenerováno: ${new Date().toLocaleString('cs-CZ')}
+                | Počet beden: ${boxes.length}
+            </div>
 
-        // 3. potvrzení dodávky
-        const confirmResponse = await fetch('/delivery/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                DeliveryId: deliveryId,
-                UserId: 1
-            })
-        });
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bedna</th>
+                        <th>PN</th>
+                        <th>Šarže</th>
+                        <th>Otisk</th>
+                        <th>Zakázka</th>
+                        <th>Ks</th>
+                        <th>Kvalita</th>
+                        <th>ČK</th>
+                        <th>Sklad</th>
+                        <th>Lokace</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
 
-        const confirmData = await confirmResponse.json();
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>
+    `);
 
-        if (!confirmResponse.ok || !confirmData.success) {
-            throw new Error(confirmData.error || 'Nepodařilo se potvrdit dodávku.');
-        }
-
-        if (confirm(`Výdej hotový. Dodávka: ${deliveryData.data.DeliveryNumber}. Chceš vytisknout dodací list?`)) {
-        window.open(`/delivery-print.html?id=${deliveryId}`, '_blank');
-        }
-        
-        document.getElementById('destination').value = '';
-        document.getElementById('deliveryPlace').innerHTML = `
-            <option value="">Vyber místo dodání</option>
-        `;
-        document.getElementById('documentLanguage').value = 'CZ';
-
-        loadBoxes();
-    } catch (err) {
-        console.error('Chyba při výdeji:', err);
-        alert('Chyba: ' + err.message);
-    }
+    printWindow.document.close();
 }
 
 if (reloadBtn) {
@@ -316,19 +358,6 @@ async function initPage() {
     await loadCurrentUser();
     applyPermissions();
     loadBoxes();
-
-    await loadDeliveryPlaces();
-
-    document.getElementById('destination').addEventListener('change', onDestinationChange);
-
-    document.getElementById('deliveryPlace').addEventListener('change', function () {
-        const selected = this.options[this.selectedIndex];
-        const lang = selected?.dataset?.lang;
-
-        if (lang) {
-            document.getElementById('documentLanguage').value = lang;
-        }
-    });
 }
 
 initPage();

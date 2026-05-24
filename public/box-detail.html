@@ -8,20 +8,15 @@
 <body>
 <header class="topbar">
     <h1>WMS Vulkán</h1>
-    <nav>
-        <a href="/">Přehled beden</a>
-        <a href="/receipt.html">Příjem</a>
-        <a href="/production-box.html">Výroba - nová bedna</a>
-        <a href="/production-receipt.html">Výroba - příjem</a>
-        <a href="/production-box-edit.html">Výroba - úprava bedny</a>
-        <a href="/production-consumption.html">Výroba - spotřeba</a>
-        <a href="/putaway.html">Zaskladnění</a>
-        <a href="/transfer.html">Přeskladnění</a>
-        <a href="/delivery.html">Výdej</a>
-        <a href="/delivery-overview.html">Přehled dodávek</a>
-        <a href="/history.html">Historie</a>
-        <a href="/masterdata.html">Číselníky</a>
-    </nav>
+<nav class="main-nav">
+    <a href="/index.html" class="active-main-nav" data-permission="BOX_VIEW">Přehled beden</a>
+    <a href="/receipt.html" data-permission="RECEIPT_CREATE">Sklad</a>
+    <a href="/production-box.html" data-permission="PRODUCTION_VIEW">Výroba</a>
+    <a href="/quality.html" data-permission="QUALITY_CHANGE">Kvalita</a>
+    <a href="/delivery-overview.html" data-permission="DELIVERY_CREATE">Dodávky</a>
+    <a href="/history.html" data-permission="BOX_HISTORY_VIEW">Historie</a>
+    <a href="/masterdata.html" data-permission="MASTERDATA_VIEW">Číselníky</a>
+</nav>
 </header>
 
 <main class="container">
@@ -68,6 +63,14 @@
         </div>
     </section>
 </main>
+
+<script src="auth-ui.js"></script>
+
+<script>
+    loadAuthUser().then(() => {
+        requirePermission('BOX_VIEW');
+    });
+</script>
 
 <script src="box-detail.js"></script>
 </body>

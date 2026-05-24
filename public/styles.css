@@ -966,3 +966,111 @@ select:focus {
     width: 100%;
     box-sizing: border-box;
 }
+
+/* Přehled kvality - pending sloupce */
+.pending-column {
+    min-width: 120px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.pending-target-column {
+    min-width: 170px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* Masterdata - číselník položek */
+#tab-parts table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#tab-parts th:nth-child(1),
+#tab-parts td:nth-child(1) {
+    width: 45px;
+}
+
+#tab-parts th:nth-child(2),
+#tab-parts td:nth-child(2) {
+    width: 120px;
+}
+
+#tab-parts th:nth-child(3),
+#tab-parts td:nth-child(3) {
+    width: 180px;
+}
+
+#tab-parts th:nth-child(4),
+#tab-parts td:nth-child(4) {
+    width: 140px;
+}
+
+#tab-parts th:nth-child(5),
+#tab-parts td:nth-child(5) {
+    width: 140px;
+}
+
+#tab-parts th:nth-child(6),
+#tab-parts td:nth-child(6) {
+    width: 80px;
+}
+
+#tab-parts th:nth-child(7),
+#tab-parts td:nth-child(7) {
+    width: 55px;
+}
+
+#tab-parts th:nth-child(8),
+#tab-parts td:nth-child(8) {
+    width: 85px;
+}
+
+#tab-parts th:nth-child(9),
+#tab-parts td:nth-child(9) {
+    width: 110px;
+}
+
+#tab-parts th:nth-child(10),
+#tab-parts td:nth-child(10) {
+    width: 160px;
+}
+
+#tab-parts th:nth-child(11),
+#tab-parts td:nth-child(11) {
+    width: 95px;
+}
+
+#tab-parts td input,
+#tab-parts td select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#tab-parts .toolbar-row input,
+#tab-parts .toolbar-row select {
+    height: 34px;
+}
+
+#newPartNumber { width: 120px; }
+#newPartDescription { width: 180px; }
+#newItemStatus { width: 140px; }
+#newCastingPartNumber { width: 140px; }
+#newPiecesPerBox { width: 80px; }
+#newAbcClass { width: 55px; }
+#newMaxCavityCount { width: 85px; }
+#newImpregnationSupplier { width: 110px; }
+#newProductionLocation { width: 160px; }
+
+.partnumber-create-row {
+    display: grid;
+    grid-template-columns: 120px 180px 140px 140px 80px 55px 85px 110px 160px 95px;
+    gap: 8px;
+    align-items: center;
+}
+
+.partnumber-create-row input,
+.partnumber-create-row select {
+    width: 100%;
+    box-sizing: border-box;
+}

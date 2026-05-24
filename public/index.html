@@ -12,13 +12,13 @@
         <h1>WMS Vulkán</h1>
 
     <nav class="main-nav">
-        <a href="/" class="active-main-nav">Přehled beden</a>
-        <a href="/receipt.html">Sklad</a>
-        <a href="/production-box.html">Výroba</a>
-        <a href="/quality.html">Kvalita</a>
-        <a href="/delivery-overview.html">Dodávky</a>
-        <a href="/history.html">Historie</a>
-        <a href="/masterdata.html">Číselníky</a>
+        <a href="/" class="active-main-nav" data-permission="BOX_VIEW">Přehled beden</a>
+        <a href="/receipt.html" data-permission="RECEIPT_CREATE">Sklad</a>
+        <a href="/production-box.html" data-permission="PRODUCTION_VIEW">Výroba</a>
+        <a href="/quality.html" data-permission="QUALITY_CHANGE">Kvalita</a>
+        <a href="/delivery-overview.html" data-permission="DELIVERY_CREATE">Dodávky</a>
+        <a href="/history.html" data-permission="BOX_HISTORY_VIEW">Historie</a>
+        <a href="/masterdata.html" data-permission="MASTERDATA_VIEW">Číselníky</a>
     </nav>
 
     </div>
@@ -40,24 +40,8 @@
             </div>
 
             <div class="action-row">
-                <select id="destination" class="select-modern">
-                    <option value="">Vyber destinaci</option>
-                    <option value="1">Do výroby</option>
-                    <option value="2">Do impregnace</option>
-                    <option value="3">Do skladu</option>
-                </select>
-                
-                <select id="deliveryPlace" class="select-modern">
-                    <option value="">Vyber místo dodání</option>
-                </select>
-
-                <select id="documentLanguage" class="select-modern">
-                    <option value="CZ">CZ - česky</option>
-                    <option value="EN">EN - English</option>
-                </select>
-
-                <button id="issueBtn" onclick="issueSelected()" class="btn btn-primary">
-                    Vydat vybrané bedny
+                <button onclick="printPickingList()" class="btn btn-primary">
+                    Tisk vychystávacího seznamu
                 </button>
 
                 <button id="transferBtn" onclick="transferSelected()" class="btn btn-primary">
@@ -117,6 +101,14 @@
             </div>
         </section>
     </main>
+
+<script src="auth-ui.js"></script>
+
+<script>
+    loadAuthUser().then(() => {
+        requirePermission('BOX_VIEW');
+    });
+</script>
 
     <script src="app.js"></script>
 </body>

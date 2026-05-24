@@ -1,4 +1,6 @@
 require('dotenv').config();
+const session = require('express-session');
+const { ConfidentialClientApplication } = require('@azure/msal-node');
 
 const path = require('path');
 const express = require('express');
@@ -9,6 +11,33 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const AUTH_MODE = process.env.AUTH_MODE || 'LOCAL';
+
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'wms_secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax'
+    }
+}));
+
+let msalClient = null;
+
+if (AUTH_MODE === 'AZURE_AD') {
+    const msalConfig = {
+        auth: {
+            clientId: process.env.AZURE_CLIENT_ID,
+            authority: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}`,
+            clientSecret: process.env.AZURE_CLIENT_SECRET
+        }
+    };
+
+    msalClient = new ConfidentialClientApplication(msalConfig);
+}
 
 // 🔌 připojení na SQL Server
 const dbConfig = {
@@ -23,13 +52,144 @@ const dbConfig = {
     }
 };
 
+async function getCurrentUser(req) {
+
+    let userEmail = null;
+
+    // LOCAL vývoj
+    if (AUTH_MODE === 'LOCAL') {
+        userEmail = process.env.TEST_USER_EMAIL;
+    }
+
+    // Azure SSO
+    if (AUTH_MODE === 'AZURE_AD') {
+        userEmail = req.session?.user?.email || null;
+    }
+
+    if (!userEmail) {
+        return null;
+    }
+
+    const pool = await sql.connect(dbConfig);
+
+    const result = await pool.request()
+        .input('Email', sql.NVarChar(300), userEmail)
+        .query(`
+            SELECT TOP 1
+                Id,
+                Username,
+                FullName,
+                Email,
+                DisplayName,
+                ExternalId,
+                IsActive
+            FROM Users
+            WHERE Email = @Email
+              AND IsActive = 1
+        `);
+
+    if (result.recordset.length === 0) {
+        return null;
+    }
+
+    const user = result.recordset[0];
+
+    // role + permissions
+    const permissionsResult = await pool.request()
+        .input('UserId', sql.Int, user.Id)
+        .query(`
+            SELECT DISTINCT
+                r.Code AS RoleCode,
+                p.Code AS PermissionCode
+            FROM UserRoles ur
+            JOIN Roles r ON r.Id = ur.RoleId
+            LEFT JOIN RolePermissions rp ON rp.RoleId = r.Id
+            LEFT JOIN Permissions p ON p.Id = rp.PermissionId
+            WHERE ur.UserId = @UserId
+        `);
+
+    user.Roles = [...new Set(
+        permissionsResult.recordset.map(x => x.RoleCode).filter(Boolean)
+    )];
+
+    user.Permissions = [...new Set(
+        permissionsResult.recordset.map(x => x.PermissionCode).filter(Boolean)
+    )];
+
+    return user;
+}
+
+function requirePermission(permissionCode) {
+
+    return async (req, res, next) => {
+
+        try {
+
+            const user = await getCurrentUser(req);
+
+            if (!user) {
+                return res.status(401).json({
+                    error: 'Neprihlaseny uzivatel'
+                });
+            }
+
+            if (!user.Permissions.includes(permissionCode)) {
+                return res.status(403).json({
+                    error: 'Nedostatecna opravneni',
+                    required: permissionCode
+                });
+            }
+
+            req.currentUser = user;
+
+            next();
+
+        } catch (err) {
+
+            console.error('Permission middleware error:', err);
+
+            res.status(500).json({
+                error: err.message
+            });
+        }
+    };
+}
+
+function requireAnyPermission(permissionCodes) {
+    return async (req, res, next) => {
+        try {
+            const user = await getCurrentUser(req);
+
+            if (!user) {
+                return res.status(401).json({ error: 'Neprihlaseny uzivatel' });
+            }
+
+            const hasPermission = permissionCodes.some(p => user.Permissions.includes(p));
+
+            if (!hasPermission) {
+                return res.status(403).json({
+                    error: 'Nedostatecna opravneni',
+                    requiredAny: permissionCodes
+                });
+            }
+
+            req.currentUser = user;
+            next();
+
+        } catch (err) {
+            console.error('Permission middleware error:', err);
+            res.status(500).json({ error: err.message });
+        }
+    };
+}
+
 // 🔹 test endpoint
 app.get('/', (req, res) => {
     res.send('WMS běží');
 });
 
 // 🔹 seznam beden
-app.get('/boxes', async (req, res) => {
+app.get('/boxes', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         await sql.connect(dbConfig);
 
@@ -46,7 +206,7 @@ app.get('/boxes', async (req, res) => {
 });
 
 // 🔹 vytvoření bedny (příjem)
-app.post('/receipt', async (req, res) => {
+app.post('/receipt', requirePermission('RECEIPT_CREATE'), async (req, res) => {
     try {
         const {
             PartNumberId,
@@ -112,7 +272,7 @@ app.listen(PORT, () => {
 });
 
 // 🔹 návrh lokace pro přijímanou bednu
-app.get('/suggest-location', async (req, res) => {
+app.get('/suggest-location', requireAnyPermission(['RECEIPT_CREATE', 'RECEIPT_EXISTING']), async (req, res) => {
     try {
         const { PartNumberId, Batch, Cavity } = req.query;
 
@@ -141,7 +301,7 @@ app.get('/suggest-location', async (req, res) => {
 });
 
 // 🔹 potvrzení příjmu po fyzickém zaskladnění
-app.post('/confirm-putaway', async (req, res) => {
+app.post('/confirm-putaway', requirePermission('PUTAWAY_CONFIRM'), async (req, res) => {
     try {
         const { BoxId, UserId } = req.body;
 
@@ -172,7 +332,7 @@ app.post('/confirm-putaway', async (req, res) => {
 });
 
 // 🔹 návrh lokace pro přeskladnění
-app.get('/suggest-transfer-location/:boxId', async (req, res) => {
+app.get('/suggest-transfer-location/:boxId', requirePermission('TRANSFER_START'), async (req, res) => {
     try {
         const boxId = parseInt(req.params.boxId, 10);
 
@@ -202,7 +362,7 @@ app.get('/suggest-transfer-location/:boxId', async (req, res) => {
 });
 
 // 🔹 zahájení přeskladnění
-app.post('/start-transfer', async (req, res) => {
+app.post('/start-transfer', requirePermission('TRANSFER_START'), async (req, res) => {
     try {
         const { BoxId, TargetLocationId, UserId } = req.body;
 
@@ -234,7 +394,7 @@ app.post('/start-transfer', async (req, res) => {
 });
 
 // 🔹 potvrzení přeskladnění po fyzickém zaskladnění
-app.post('/confirm-transfer', async (req, res) => {
+app.post('/confirm-transfer', requirePermission('TRANSFER_CONFIRM'), async (req, res) => {
     try {
         const { BoxId, UserId } = req.body;
 
@@ -265,7 +425,7 @@ app.post('/confirm-transfer', async (req, res) => {
 });
 
 // 🔹 založení dodávky
-app.post('/delivery', async (req, res) => {
+app.post('/delivery', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const { DeliveryDestinationId, DeliveryPlaceId, DocumentLanguage, CreatedByUserId } = req.body;
 
@@ -311,7 +471,7 @@ app.post('/delivery', async (req, res) => {
 });
 
 // 🔹 Přidání bedny do dodávky
-app.post('/delivery/add-box', async (req, res) => {
+app.post('/delivery/add-box', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const { DeliveryId, BoxId, UserId } = req.body;
 
@@ -343,7 +503,7 @@ app.post('/delivery/add-box', async (req, res) => {
 });
 
 // 🔹 Potvrzení dodávky
-app.post('/delivery/confirm', async (req, res) => {
+app.post('/delivery/confirm', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const { DeliveryId, UserId } = req.body;
 
@@ -374,7 +534,7 @@ app.post('/delivery/confirm', async (req, res) => {
 });
 
 // 🔹 Seznam dodávek
-app.get('/deliveries', async (req, res) => {
+app.get('/deliveries', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -396,7 +556,7 @@ app.get('/deliveries', async (req, res) => {
 });
 
 // 🔹 Detail dodávky
-app.get('/deliveries/:id', async (req, res) => {
+app.get('/deliveries/:id', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -424,7 +584,7 @@ app.get('/deliveries/:id', async (req, res) => {
 });
 
 // 🔹 Založení inventury
-app.post('/inventory', async (req, res) => {
+app.post('/inventory', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         const { PartNumberId, CreatedByUserId } = req.body;
 
@@ -455,7 +615,7 @@ app.post('/inventory', async (req, res) => {
 });
 
 // 🔹 Detail inventury
-app.get('/inventory/:id', async (req, res) => {
+app.get('/inventory/:id', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -498,7 +658,7 @@ app.get('/inventory/:id', async (req, res) => {
 });
 
 // 🔹 Zapsání výsledku inventury
-app.post('/inventory/line', async (req, res) => {
+app.post('/inventory/line', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         const {
             InventoryLineId,
@@ -539,7 +699,7 @@ app.post('/inventory/line', async (req, res) => {
 
 
 // 🔹 seznam beden čekajících na zaskladnění
-app.get('/putaway/pending', async (req, res) => {
+app.get('/putaway/pending', requirePermission('PUTAWAY_CONFIRM'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -569,7 +729,7 @@ app.get('/putaway/pending', async (req, res) => {
 });
 
 // 🔹 hromadné potvrzení zaskladnění
-app.post('/putaway/confirm-multiple', async (req, res) => {
+app.post('/putaway/confirm-multiple', requirePermission('PUTAWAY_CONFIRM'), async (req, res) => {
     try {
         const { BoxIds, UserId } = req.body;
 
@@ -598,8 +758,8 @@ app.post('/putaway/confirm-multiple', async (req, res) => {
     }
 });
 
-// 🔹 hromadná změna kvalitativního stavu beden
-app.post('/boxes/change-quality-status', async (req, res) => {
+// 🔹 hromadná změna kvalitativního stavu beden - založí požadavek na potvrzení
+app.post('/boxes/change-quality-status', requirePermission('QUALITY_CHANGE'), async (req, res) => {
     try {
         const { BoxIds, NewQualityStatusId, UserId, RedCardNumber, Note } = req.body;
 
@@ -614,17 +774,30 @@ app.post('/boxes/change-quality-status', async (req, res) => {
         for (const boxId of BoxIds) {
             await pool.request()
                 .input('BoxId', sql.Int, boxId)
-                .input('NewQualityStatusId', sql.Int, NewQualityStatusId)
+                .input('PendingQualityStatusId', sql.Int, NewQualityStatusId)
+                .input('PendingRedCardNumber', sql.NVarChar(500), RedCardNumber || null)
                 .input('UserId', sql.Int, UserId)
-                .input('Note', sql.NVarChar(200), Note || null)
-                .input('RedCardNumber', sql.NVarChar(50), RedCardNumber || null)
-                .execute('ChangeBoxQualityStatus');
+                .input('Note', sql.NVarChar(500), Note || 'Hromadná změna kvality - čeká na fyzické potvrzení')
+                .query(`
+                    UPDATE Boxes
+                    SET
+                        PendingQualityStatusId = @PendingQualityStatusId,
+                        PendingRedCardNumber = @PendingRedCardNumber,
+                        PendingQualityRequestedAt = GETDATE(),
+                        PendingQualityRequestedByUserId = @UserId,
+                        PendingQualityNote = @Note,
+                        UpdatedAt = GETDATE(),
+                        UpdatedByUserId = @UserId
+                    WHERE Id = @BoxId
+                      AND IsActive = 1
+                `);
         }
 
         res.json({
             success: true,
-            message: `Kvalitativni stav změněn u ${BoxIds.length} beden`
+            message: `Založen požadavek na změnu kvality u ${BoxIds.length} beden. Změna čeká na fyzické potvrzení.`
         });
+
     } catch (err) {
         console.error('Chyba /boxes/change-quality-status:', err);
         res.status(500).json({
@@ -635,7 +808,7 @@ app.post('/boxes/change-quality-status', async (req, res) => {
 });
 
 // 🔹 endpoint pro obrazivku beden čekajících na potvrzení přeskladnění
-app.get('/locations', async (req, res) => {
+app.get('/locations', requireAnyPermission(['PUTAWAY_CONFIRM', 'TRANSFER_CONFIRM', 'RECEIPT_CREATE', 'RECEIPT_EXISTING', 'PRODUCTION_OPERATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
         const result = await pool.request().query(`
@@ -650,7 +823,7 @@ app.get('/locations', async (req, res) => {
     }
 });
 
-app.get('/transfer/pending', async (req, res) => {
+app.get('/transfer/pending', requirePermission('TRANSFER_CONFIRM'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
         const result = await pool.request().query(`
@@ -679,7 +852,7 @@ app.get('/transfer/pending', async (req, res) => {
     }
 });
 
-app.post('/transfer/update-location', async (req, res) => {
+app.post('/transfer/update-location', requirePermission('TRANSFER_CONFIRM'), async (req, res) => {
     try {
         const { BoxId, TargetLocationId, UserId } = req.body;
 
@@ -707,7 +880,7 @@ app.post('/transfer/update-location', async (req, res) => {
     }
 });
 
-app.post('/transfer/confirm-multiple', async (req, res) => {
+app.post('/transfer/confirm-multiple', requirePermission('TRANSFER_CONFIRM'), async (req, res) => {
     try {
         const { BoxIds, UserId } = req.body;
 
@@ -730,7 +903,7 @@ app.post('/transfer/confirm-multiple', async (req, res) => {
     }
 });
 
-app.post('/transfer/cancel', async (req, res) => {
+app.post('/transfer/cancel', requirePermission('TRANSFER_CANCEL'), async (req, res) => {
     try {
         const { BoxId, UserId } = req.body;
 
@@ -779,7 +952,7 @@ app.post('/transfer/cancel', async (req, res) => {
 });
 
 // 🔹 možnost změny lokace na obrazovce beden čekajících na potvrzení zaskladnění
-app.post('/putaway/update-location', async (req, res) => {
+app.post('/putaway/update-location', requirePermission('PUTAWAY_CONFIRM'), async (req, res) => {
     try {
         const { BoxId, TargetLocationId, UserId } = req.body;
 
@@ -809,7 +982,7 @@ app.post('/putaway/update-location', async (req, res) => {
 });
 
 // 🔹 možnost zrušení příjmu pro bednu čekající na potvrzení zaskladnění
-app.post('/putaway/cancel', async (req, res) => {
+app.post('/putaway/cancel', requirePermission('PUTAWAY_CANCEL'), async (req, res) => {
     try {
         const { BoxId, UserId } = req.body;
 
@@ -859,7 +1032,7 @@ app.post('/putaway/cancel', async (req, res) => {
 });
 
 // 🔹 bedna podle čísla
-app.get('/boxes/by-number/:boxNumber', async (req, res) => {
+app.get('/boxes/by-number/:boxNumber', requireAnyPermission(['BOX_VIEW', 'RECEIPT_EXISTING', 'PRODUCTION_OPERATE', 'QUALITY_CHANGE', 'DELIVERY_CREATE']), async (req, res) => {
     try {
         const { boxNumber } = req.params;
 
@@ -928,7 +1101,7 @@ app.get('/boxes/by-number/:boxNumber', async (req, res) => {
 });
 
 // 🔹 dodávka podle čísla
-app.get('/delivery/by-number/:number', async (req, res) => {
+app.get('/delivery/by-number/:number', requireAnyPermission(['RECEIPT_EXISTING', 'PRODUCTION_OPERATE', 'DELIVERY_CREATE']), async (req, res) => {
     try {
         const { number } = req.params;
         const pool = await sql.connect(dbConfig);
@@ -958,7 +1131,7 @@ app.get('/delivery/by-number/:number', async (req, res) => {
 });
 
 // 🔹 endpoint pro navrzeni lokace při příjmu již existujících beden
-app.post('/receipt/prepare-existing', async (req, res) => {
+app.post('/receipt/prepare-existing', requirePermission('RECEIPT_EXISTING'), async (req, res) => {
     try {
         const { BoxIds, UserId } = req.body;
 
@@ -1074,7 +1247,7 @@ app.post('/receipt/prepare-existing', async (req, res) => {
 });
 
 // 🔹 endpoint pro zobrazení historie
-app.get('/history', async (req, res) => {
+app.get('/history', requirePermission('BOX_HISTORY_VIEW'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1117,7 +1290,7 @@ app.get('/history', async (req, res) => {
 });
 
 // 🔹 export historie do csv
-app.get('/history/export', async (req, res) => {
+app.get('/history/export', requirePermission('BOX_EXPORT'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1172,7 +1345,7 @@ app.get('/history/export', async (req, res) => {
 });
 
 // 🔹 export pro detail bedny
-app.get('/boxes/:id/detail', async (req, res) => {
+app.get('/boxes/:id/detail', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         const boxId = parseInt(req.params.id, 10);
 
@@ -1231,7 +1404,7 @@ app.get('/boxes/:id/detail', async (req, res) => {
 });
 
 // 🔹 export pro historii jedné bedny
-app.get('/boxes/:id/history', async (req, res) => {
+app.get('/boxes/:id/history', requirePermission('BOX_HISTORY_VIEW'), async (req, res) => {
     try {
         const boxId = parseInt(req.params.id, 10);
 
@@ -1273,56 +1446,25 @@ app.get('/boxes/:id/history', async (req, res) => {
     }
 });
 
-// 🔹 enpoint pro řízení přístupů uživatelů
+// 🔹 endpoint pro řízení přístupů uživatelů
 app.get('/me', async (req, res) => {
     try {
-        // DOČASNĚ: simulace uživatele ze SSO
-        // Později sem přijde email z Microsoft Entra ID / AD
-        const currentUserEmail = process.env.TEST_USER_EMAIL;
+        const user = await getCurrentUser(req);
 
-        if (!currentUserEmail) {
-            return res.status(500).json({
-                error: 'Chybi TEST_USER_EMAIL v .env'
-            });
-        }
-
-        const pool = await sql.connect(dbConfig);
-
-        const result = await pool.request()
-            .input('Email', sql.NVarChar(150), currentUserEmail)
-            .query(`
-                SELECT 
-                    u.Id,
-                    u.Username,
-                    u.Email,
-                    u.DisplayName,
-                    r.Code AS RoleCode,
-                    p.Code AS PermissionCode
-                FROM Users u
-                JOIN UserRoles ur ON ur.UserId = u.Id
-                JOIN Roles r ON r.Id = ur.RoleId
-                JOIN RolePermissions rp ON rp.RoleId = r.Id
-                JOIN Permissions p ON p.Id = rp.PermissionId
-                WHERE u.Email = @Email
-                  AND u.IsActive = 1
-            `);
-
-        const rows = result.recordset;
-
-        if (rows.length === 0) {
-            return res.status(403).json({
-                error: 'Uzivatel nenalezen nebo nema role/opravneni',
-                email: currentUserEmail
+        if (!user) {
+            return res.status(401).json({
+                error: 'Uzivatel neni prihlasen nebo neni aktivni'
             });
         }
 
         res.json({
-            id: rows[0].Id,
-            username: rows[0].Username,
-            email: rows[0].Email,
-            displayName: rows[0].DisplayName || rows[0].Username,
-            roles: [...new Set(rows.map(r => r.RoleCode))],
-            permissions: [...new Set(rows.map(r => r.PermissionCode))]
+            id: user.Id,
+            username: user.Username,
+            email: user.Email,
+            displayName: user.DisplayName || user.FullName || user.Username,
+            roles: user.Roles,
+            permissions: user.Permissions,
+            authMode: AUTH_MODE
         });
 
     } catch (err) {
@@ -1345,12 +1487,22 @@ app.get('/login', (req, res) => {
 
 
 // masterdata endpoint  -čtení
-app.get('/masterdata/partnumbers', async (req, res) => {
+app.get('/masterdata/partnumbers', requirePermission('MASTERDATA_VIEW'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
         const result = await pool.request().query(`
-            SELECT Id, PartNumber, Description, ProductionDefaultLocationId
+            SELECT
+                Id,
+                PartNumber,
+                Description,
+                ProductionDefaultLocationId,
+                ItemStatus,
+                CastingPartNumber,
+                PiecesPerBox,
+                AbcClass,
+                MaxCavityCount,
+                ImpregnationSupplier
             FROM PartNumbers
             ORDER BY PartNumber
         `);
@@ -1363,9 +1515,19 @@ app.get('/masterdata/partnumbers', async (req, res) => {
 });
 
 // masterdata endpoint  - vytvoření položky
-app.post('/masterdata/partnumbers', async (req, res) => {
+app.post('/masterdata/partnumbers', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
-        const { PartNumber, Description, ProductionDefaultLocationId } = req.body;
+        const {
+            PartNumber,
+            Description,
+            ProductionDefaultLocationId,
+            ItemStatus,
+            CastingPartNumber,
+            PiecesPerBox,
+            AbcClass,
+            MaxCavityCount,
+            ImpregnationSupplier
+        } = req.body;
 
         if (!PartNumber) {
             return res.status(400).json({ error: 'PartNumber je povinný.' });
@@ -1377,9 +1539,35 @@ app.post('/masterdata/partnumbers', async (req, res) => {
             .input('PartNumber', sql.NVarChar, PartNumber)
             .input('Description', sql.NVarChar, Description || null)
             .input('ProductionDefaultLocationId', sql.Int, ProductionDefaultLocationId || null)
+            .input('ItemStatus', sql.NVarChar(50), ItemStatus || null)
+            .input('CastingPartNumber', sql.NVarChar(100), CastingPartNumber || null)
+            .input('PiecesPerBox', sql.Int, PiecesPerBox || null)
+            .input('AbcClass', sql.NVarChar(1), AbcClass || null)
+            .input('MaxCavityCount', sql.Int, MaxCavityCount || null)
+            .input('ImpregnationSupplier', sql.NVarChar(100), ImpregnationSupplier || null)
             .query(`
-                INSERT INTO PartNumbers (PartNumber, Description, ProductionDefaultLocationId)
-                VALUES (@PartNumber, @Description, @ProductionDefaultLocationId)
+                INSERT INTO PartNumbers (
+                    PartNumber,
+                    Description,
+                    ProductionDefaultLocationId,
+                    ItemStatus,
+                    CastingPartNumber,
+                    PiecesPerBox,
+                    AbcClass,
+                    MaxCavityCount,
+                    ImpregnationSupplier
+                )
+                VALUES (
+                    @PartNumber,
+                    @Description,
+                    @ProductionDefaultLocationId,
+                    @ItemStatus,
+                    @CastingPartNumber,
+                    @PiecesPerBox,
+                    @AbcClass,
+                    @MaxCavityCount,
+                    @ImpregnationSupplier
+                )
             `);
 
         res.json({ success: true });
@@ -1390,10 +1578,19 @@ app.post('/masterdata/partnumbers', async (req, res) => {
     }
 });
 
-app.put('/masterdata/partnumbers/:id', async (req, res) => {
+app.put('/masterdata/partnumbers/:id', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        const { Description, ProductionDefaultLocationId } = req.body;
+        const {
+            Description,
+            ProductionDefaultLocationId,
+            ItemStatus,
+            CastingPartNumber,
+            PiecesPerBox,
+            AbcClass,
+            MaxCavityCount,
+            ImpregnationSupplier
+        } = req.body;
 
         if (!id) {
             return res.status(400).json({ error: 'Neplatné ID položky.' });
@@ -1405,10 +1602,22 @@ app.put('/masterdata/partnumbers/:id', async (req, res) => {
             .input('Id', sql.Int, id)
             .input('Description', sql.NVarChar, Description || null)
             .input('ProductionDefaultLocationId', sql.Int, ProductionDefaultLocationId || null)
+            .input('ItemStatus', sql.NVarChar(50), ItemStatus || null)
+            .input('CastingPartNumber', sql.NVarChar(100), CastingPartNumber || null)
+            .input('PiecesPerBox', sql.Int, PiecesPerBox || null)
+            .input('AbcClass', sql.NVarChar(1), AbcClass || null)
+            .input('MaxCavityCount', sql.Int, MaxCavityCount || null)
+            .input('ImpregnationSupplier', sql.NVarChar(100), ImpregnationSupplier || null)
             .query(`
                 UPDATE PartNumbers
                 SET Description = @Description,
-                    ProductionDefaultLocationId = @ProductionDefaultLocationId
+                    ProductionDefaultLocationId = @ProductionDefaultLocationId,
+                    ItemStatus = @ItemStatus,
+                    CastingPartNumber = @CastingPartNumber,
+                    PiecesPerBox = @PiecesPerBox,
+                    AbcClass = @AbcClass,
+                    MaxCavityCount = @MaxCavityCount,
+                    ImpregnationSupplier = @ImpregnationSupplier
                 WHERE Id = @Id
             `);
 
@@ -1421,7 +1630,7 @@ app.put('/masterdata/partnumbers/:id', async (req, res) => {
 });
 
 // masterdata endpoint  - lokace
-app.get('/masterdata/locations', async (req, res) => {
+app.get('/masterdata/locations', requirePermission('MASTERDATA_VIEW'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1429,6 +1638,7 @@ app.get('/masterdata/locations', async (req, res) => {
             SELECT 
                 l.Id,
                 l.Code,
+                l.TurnoverType,
                 l.CapacityBoxes,
                 l.UseForSuggestion,
                 w.Name AS WarehouseName
@@ -1446,7 +1656,7 @@ app.get('/masterdata/locations', async (req, res) => {
 
 
 // masterdata endpoint  - vytvoření lokace
-app.post('/masterdata/locations', async (req, res) => {
+app.post('/masterdata/locations', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const { Code, CapacityBoxes, WarehouseId } = req.body;
 
@@ -1478,7 +1688,7 @@ app.post('/masterdata/locations', async (req, res) => {
 });
 
 // masterdata endpoint  - sklady
-app.get('/masterdata/warehouses', async (req, res) => {
+app.get('/masterdata/warehouses', requireAnyPermission(['MASTERDATA_VIEW', 'RECEIPT_CREATE', 'RECEIPT_EXISTING', 'PRODUCTION_OPERATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1497,10 +1707,10 @@ app.get('/masterdata/warehouses', async (req, res) => {
 
 
 // masterdata endpoint - update lokace
-app.put('/masterdata/locations/:id', async (req, res) => {
+app.put('/masterdata/locations/:id', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const locationId = parseInt(req.params.id, 10);
-        const { CapacityBoxes, WarehouseId, UseForSuggestion } = req.body;
+        const { CapacityBoxes, TurnoverType, WarehouseId, UseForSuggestion } = req.body;
 
         if (!locationId) {
             return res.status(400).json({ error: 'Neplatné ID lokace.' });
@@ -1539,12 +1749,14 @@ app.put('/masterdata/locations/:id', async (req, res) => {
         await pool.request()
             .input('LocationId', sql.Int, locationId)
             .input('CapacityBoxes', sql.Int, CapacityBoxes)
+            .input('TurnoverType', sql.NVarChar(30), TurnoverType || null)
             .input('WarehouseId', sql.Int, WarehouseId)
             .input('UseForSuggestion', sql.Bit, UseForSuggestion ? 1 : 0)
             .query(`
                 UPDATE Locations
                 SET CapacityBoxes = @CapacityBoxes,
                     Capacity = @CapacityBoxes,
+                    TurnoverType = @TurnoverType,
                     WarehouseId = @WarehouseId,
                     UseForSuggestion = @UseForSuggestion
                 WHERE Id = @LocationId
@@ -1560,7 +1772,7 @@ app.put('/masterdata/locations/:id', async (req, res) => {
 
 
 // masterdata endpoint - oba endpointy destinací
-app.get('/masterdata/destinations', async (req, res) => {
+app.get('/masterdata/destinations', requireAnyPermission(['MASTERDATA_VIEW', 'DELIVERY_CREATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1577,7 +1789,7 @@ app.get('/masterdata/destinations', async (req, res) => {
     }
 });
 
-app.post('/masterdata/destinations', async (req, res) => {
+app.post('/masterdata/destinations', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const { Code, Name } = req.body;
 
@@ -1605,7 +1817,7 @@ app.post('/masterdata/destinations', async (req, res) => {
 
 
 // endpointy pro mastaerdata - kvalitativní stavy
-app.get('/masterdata/quality-statuses', async (req, res) => {
+app.get('/masterdata/quality-statuses', requireAnyPermission(['MASTERDATA_VIEW', 'QUALITY_CHANGE', 'RECEIPT_CREATE', 'PRODUCTION_OPERATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1621,7 +1833,7 @@ app.get('/masterdata/quality-statuses', async (req, res) => {
     }
 });
 
-app.post('/masterdata/quality-statuses', async (req, res) => {
+app.post('/masterdata/quality-statuses', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const { Code, Name } = req.body;
 
@@ -1644,7 +1856,7 @@ app.post('/masterdata/quality-statuses', async (req, res) => {
 
 
 // endpointy pro mastaerdata - obsahove stavy
-app.get('/masterdata/content-statuses', async (req, res) => {
+app.get('/masterdata/content-statuses', requireAnyPermission(['MASTERDATA_VIEW', 'RECEIPT_CREATE', 'PRODUCTION_OPERATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1660,7 +1872,7 @@ app.get('/masterdata/content-statuses', async (req, res) => {
     }
 });
 
-app.post('/masterdata/content-statuses', async (req, res) => {
+app.post('/masterdata/content-statuses', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const { Name } = req.body;
 
@@ -1681,7 +1893,7 @@ app.post('/masterdata/content-statuses', async (req, res) => {
 });
 
 // endpoint - export do csv z hlavniho prehledu
-app.get('/boxes/export', async (req, res) => {
+app.get('/boxes/export', requirePermission('BOX_EXPORT'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1734,7 +1946,7 @@ app.get('/boxes/export', async (req, res) => {
 
 
 // endpointy  - masterdata - místa dodání
-app.get('/masterdata/delivery-places', async (req, res) => {
+app.get('/masterdata/delivery-places', requireAnyPermission(['MASTERDATA_VIEW', 'DELIVERY_CREATE']), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1763,7 +1975,7 @@ app.get('/masterdata/delivery-places', async (req, res) => {
     }
 });
 
-app.post('/masterdata/delivery-places', async (req, res) => {
+app.post('/masterdata/delivery-places', requirePermission('MASTERDATA_EDIT'), async (req, res) => {
     try {
         const {
             DeliveryDestinationId,
@@ -1823,7 +2035,7 @@ app.post('/masterdata/delivery-places', async (req, res) => {
 });
 
 // endpoint pro masterdata - výrobní lokace u položek
-app.get('/masterdata/production-locations', async (req, res) => {
+app.get('/masterdata/production-locations', requirePermission('PRODUCTION_VIEW'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -1843,7 +2055,7 @@ app.get('/masterdata/production-locations', async (req, res) => {
 });
 
 // zložení bedny ve výrobě
-app.post('/production/box', async (req, res) => {
+app.post('/production/box', requirePermission('PRODUCTION_OPERATE'), async (req, res) => {
     try {
         const {
             PartNumberId,
@@ -1884,7 +2096,7 @@ app.post('/production/box', async (req, res) => {
 });
 
 // endpoint pro data dodacího listu
-app.get('/delivery/:id/print-data', async (req, res) => {
+app.get('/delivery/:id/print-data', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const deliveryId = parseInt(req.params.id, 10);
         const pool = await sql.connect(dbConfig);
@@ -1944,7 +2156,7 @@ app.get('/delivery/:id/print-data', async (req, res) => {
 
 
 // endpoint pro tisk stitku na bedny
-app.get('/box/:id/label-data', async (req, res) => {
+app.get('/box/:id/label-data', requirePermission('BOX_VIEW'), async (req, res) => {
     try {
         const boxId = parseInt(req.params.id, 10);
         const pool = await sql.connect(dbConfig);
@@ -1984,7 +2196,7 @@ app.get('/box/:id/label-data', async (req, res) => {
 });
 
 // endpoint pro preheld dodavek
-app.get('/delivery-overview', async (req, res) => {
+app.get('/delivery-overview', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const pool = await sql.connect(dbConfig);
 
@@ -2022,7 +2234,7 @@ app.get('/delivery-overview', async (req, res) => {
 });
 
 // endpoint detailu dodávky
-app.get('/delivery/:id/detail', async (req, res) => {
+app.get('/delivery/:id/detail', requirePermission('DELIVERY_CREATE'), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
 
@@ -2079,7 +2291,7 @@ app.get('/delivery/:id/detail', async (req, res) => {
 });
 
 // endpoint pro dokonceni prijmu ve vyrobe
-app.post('/production/receipt/complete', async (req, res) => {
+app.post('/production/receipt/complete', requirePermission('PRODUCTION_OPERATE'), async (req, res) => {
     try {
         const {
             BoxIds,
@@ -2118,7 +2330,7 @@ app.post('/production/receipt/complete', async (req, res) => {
 
 
 // endpoint na změnu výrobní bedny
-app.post('/api/production/update-box', async (req, res) => {
+app.post('/api/production/update-box', requirePermission('PRODUCTION_OPERATE'), async (req, res) => {
     try {
         const {
             boxId,
@@ -2155,7 +2367,7 @@ app.post('/api/production/update-box', async (req, res) => {
 
 
 // endpoint - spotřeba bedny ve výrobě
-app.post('/api/production/consume-boxes', async (req, res) => {
+app.post('/api/production/consume-boxes', requirePermission('PRODUCTION_OPERATE'), async (req, res) => {
     try {
         const {
             boxIds,
@@ -2192,7 +2404,7 @@ app.post('/api/production/consume-boxes', async (req, res) => {
 });
 
 // endpoint pro zmenu kvalitativniho stavu bedny
-app.post('/api/quality/update-box', async (req, res) => {
+app.post('/api/quality/update-box', requirePermission('QUALITY_CHANGE'), async (req, res) => {
     try {
         const {
             boxId,

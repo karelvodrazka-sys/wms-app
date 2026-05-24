@@ -12,13 +12,13 @@
         <h1>WMS Vulkán</h1>
 
         <nav class="main-nav">
-            <a href="/index.html">Přehled beden</a>
-            <a href="/receipt.html">Sklad</a>
-            <a href="/production-box.html">Výroba</a>
-            <a href="/quality.html" class="active-main-nav">Kvalita</a>
-            <a href="/delivery-overview.html">Dodávky</a>
-            <a href="/history.html">Historie</a>
-            <a href="/masterdata.html">Číselníky</a>
+            <a href="/index.html" data-permission="BOX_VIEW">Přehled beden</a>
+            <a href="/receipt.html" data-permission="RECEIPT_CREATE">Sklad</a>
+            <a href="/production-box.html" data-permission="PRODUCTION_VIEW">Výroba</a>
+            <a href="/quality.html" class="active-main-nav" data-permission="QUALITY_CHANGE">Kvalita</a>
+            <a href="/delivery-overview.html" data-permission="DELIVERY_CREATE">Dodávky</a>
+            <a href="/history.html" data-permission="BOX_HISTORY_VIEW">Historie</a>
+            <a href="/masterdata.html" data-permission="MASTERDATA_VIEW">Číselníky</a>
         </nav>
     </div>
 </header>
@@ -139,7 +139,7 @@
                     onclick="changeSelectedQualityStatus()"
                     class="btn btn-primary">
 
-                    Změnit kvalitativní stav
+                    Založit požadavek na změnu
 
                 </button>
 
@@ -173,6 +173,8 @@
                         <th>Číslo ČK</th>
                         <th>Sklad</th>
                         <th>Lokace</th>
+                        <th class="pending-column">Čeká na potvrzení</th>
+                        <th class="pending-target-column">Cílový stav</th>
                         <th>Akce</th>
                     </tr>
 
@@ -188,6 +190,8 @@
                         <th><input class="quality-column-filter" data-field="RedCardNumber" placeholder="ČK" /></th>
                         <th><input class="quality-column-filter" data-field="WarehouseName" placeholder="sklad" /></th>
                         <th><input class="quality-column-filter" data-field="LocationCode" placeholder="lokace" /></th>
+                        <th><input class="quality-column-filter" data-field="PendingQualityStatus" placeholder="čeká" /></th>
+                        <th><input class="quality-column-filter" data-field="PendingQualityStatus" placeholder="cílový" /></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -195,7 +199,7 @@
                     <tbody id="boxesTableBody">
 
                         <tr>
-                            <td colspan="12">
+                            <td colspan="14">
                                 Načítám data...
                             </td>
                         </tr>
@@ -211,6 +215,14 @@
     </div>
 
 </main>
+
+<script src="auth-ui.js"></script>
+
+<script>
+    loadAuthUser().then(() => {
+        requirePermission('QUALITY_CHANGE');
+    });
+</script>
 
 <script src="quality.js"></script>
 

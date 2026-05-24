@@ -10,15 +10,13 @@
     <div class="topbar-left">
         <h1>WMS Vulkán</h1>
         <nav class="main-nav">
-            <a href="/index.html">Přehled beden</a>
-            <a href="/receipt.html">Sklad</a>
-            <a href="/production-box.html">Výroba</a>
-            <a href="/quality.html">Kvalita</a>
-            <a href="/delivery-overview.html">Dodávky</a>
-            <a href="/history.html">Historie</a>
-            <a href="/masterdata.html" class="active-main-nav">
-                Číselníky
-            </a>
+            <a href="/index.html" data-permission="BOX_VIEW">Přehled beden</a>
+            <a href="/receipt.html" data-permission="RECEIPT_CREATE">Sklad</a>
+            <a href="/production-box.html" data-permission="PRODUCTION_VIEW">Výroba</a>
+            <a href="/quality.html" data-permission="QUALITY_CHANGE">Kvalita</a>
+            <a href="/delivery-overview.html" data-permission="DELIVERY_CREATE">Dodávky</a>
+            <a href="/history.html" data-permission="BOX_HISTORY_VIEW">Historie</a>
+            <a href="/masterdata.html" class="active-main-nav" data-permission="MASTERDATA_VIEW">Číselníky</a>
         </nav>
 
     </div>
@@ -44,9 +42,38 @@
             <button class="btn btn-primary" onclick="loadPartNumbers()">Obnovit</button>
         </div>
 
-        <div class="toolbar-row" style="padding: 16px; gap: 8px;">
-            <input id="newPartNumber" placeholder="PN (např. PN-2001)" />
+        <div class="partnumber-create-row" style="padding: 16px;">
+            <input id="newPartNumber" placeholder="PN (např. 60-000)" />
             <input id="newPartDescription" placeholder="Popis" />
+                        <select id="newItemStatus">
+                <option value="">-- status --</option>
+                <option value="Finální výrobek">Finální výrobek</option>
+                <option value="Odlitek">Odlitek</option>
+            </select>
+
+            <input id="newCastingPartNumber" placeholder="Polotovar">
+
+            <input id="newPiecesPerBox" type="number" placeholder="Ks / bedna">
+
+            <select id="newAbcClass">
+                <option value="">ABC</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+            </select>
+
+            <input id="newMaxCavityCount" type="number" placeholder="Max otisků">
+
+            <select id="newImpregnationSupplier">
+                <option value="">-- impregnace --</option>
+                <option value="KID">KID</option>
+                <option value="Maldaner">Maldaner</option>
+            </select>
+
+            <select id="newProductionLocation">
+                <option value="">-- výrobní lokace --</option>
+            </select>
+            
             <button class="btn btn-primary" onclick="createPartNumber()">Přidat</button>
         </div>
 
@@ -57,6 +84,12 @@
                         <th>ID</th>
                         <th>PN</th>
                         <th>Popis</th>
+                        <th>Status</th>
+                        <th>Polotovar</th>
+                        <th>Ks / bedna</th>
+                        <th>ABC</th>
+                        <th>Max otisků</th>
+                        <th>Impregnace</th>
                         <th>Výrobní lokace</th>
                         <th>Akce</th>
                     </tr>
@@ -92,6 +125,7 @@
                     <th>ID</th>
                     <th>Lokace</th>
                     <th>Kapacita beden</th>
+                    <th>Obrátkovost</th>
                     <th>Sklad</th>
                     <th>Navrhovat</th>
                     <th>Akce</th>
@@ -99,7 +133,7 @@
             </thead>
             <tbody id="locationBody">
                 <tr>
-                    <td colspan="6">Načítám data...</td>
+                    <td colspan="7">Načítám data...</td>
                 </tr>
             </tbody>
         </table>
@@ -233,6 +267,14 @@
     </div>
     </section>
 </main>
+
+<script src="auth-ui.js"></script>
+
+<script>
+    loadAuthUser().then(() => {
+        requirePermission('MASTERDATA_VIEW');
+    });
+</script>
 
 <script src="masterdata.js"></script>
 </body>
